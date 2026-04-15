@@ -27,7 +27,7 @@ public class ErrorHandler {
                 "Internal server error",
                 500,
                 ex.getMessage(),
-                null
+                ex.getLocalizedMessage()
         );
         return ResponseEntity.status(500).body(error);
     }
