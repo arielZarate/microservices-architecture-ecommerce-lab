@@ -8,8 +8,8 @@ import java.util.Optional;
 public interface ProductsProvider {
 
 
-    List<Product> findAll();
-    Optional<Product> findById(String productId);
+    List<Product> getProducts();
+    Optional<Product> findProductById(String productId);
     Product createProduct(Product product);
     Product updateProduct(Product product);
     void deleteProduct(String productId);

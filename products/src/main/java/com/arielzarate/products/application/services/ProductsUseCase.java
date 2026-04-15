@@ -17,12 +17,12 @@ public class ProductsUseCase implements ProductsService {
 
     @Override
     public List<Product> getAllProducts() {
-        return productsProvider.findAll();
+        return productsProvider.getProducts();
     }
 
     @Override
     public Product getProductById(String productId) {
-        return productsProvider.findById(productId).orElse(null);
+        return productsProvider.findProductById(productId).orElse(null);
     }
 
     @Override

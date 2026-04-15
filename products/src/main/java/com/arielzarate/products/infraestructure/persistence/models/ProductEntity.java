@@ -1,10 +1,7 @@
 package com.arielzarate.products.infraestructure.persistence.models;
 
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,7 +13,8 @@ public class ProductEntity {
 
     @Id
     @Column(name = "product_id")
-    private String productId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long productId;
 
     @Column(name = "title", nullable = false)
     private String title;
