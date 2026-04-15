@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 @Component
-
 @Slf4j
 public class WebClientProvider {
 
