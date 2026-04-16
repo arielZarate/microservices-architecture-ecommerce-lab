@@ -1,7 +1,7 @@
 package com.arielzarate.products.interfaces.rest;
 
 
-import com.arielzarate.products.domain.ports.in.ProductsService;
+import com.arielzarate.products.domain.ports.in.ProductService;
 import com.arielzarate.products.interfaces.rest.dto.ProductResponseDTO;
 import com.arielzarate.products.interfaces.rest.mapper.ProductMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,7 +22,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ProductController {
 
-    private final ProductsService service;
+    private final ProductService service;
     private final ProductMapper productMapper;
 
     @Operation(

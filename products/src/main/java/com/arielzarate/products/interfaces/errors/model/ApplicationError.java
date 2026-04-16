@@ -18,16 +18,13 @@ public class ApplicationError {
 
 
     //method statics
-    public static ApplicationError badRequest() {
-        return new ApplicationError(400, "bad request ", null);
-    }
 
     public static ApplicationError badRequest(String detail) {
         return new ApplicationError(400, "bad request " + detail, null);
     }
 
-    public static ApplicationError invalidOperationType(String operationType) {
-        return new ApplicationError(400, "operation type " + operationType + " is invalid");
+    public static ApplicationError conflict(String detailConflict) {
+        return new ApplicationError(409, detailConflict);
     }
 
     public static ApplicationError serverError(Throwable origin) {
@@ -35,16 +32,13 @@ public class ApplicationError {
     }
 
     public static ApplicationError notNullError(String field) {
-        return new ApplicationError(400, "The field " + field + " cannot be null");
+        return new ApplicationError(400, field + " cannot be null");
     }
 
-    public static ApplicationError notFoundError(String field) {
-        return new ApplicationError(404, "The field " + field + " was not found");
+    public static ApplicationError notFoundError(String message) {
+        return new ApplicationError(404, message);
     }
 
-    public static ApplicationError errorMakingDebit(String error) {
-        return new ApplicationError(400, "The debit reversal advice could not be completed. Error: " + error);
-    }
 
     @Override
     public String toString() {

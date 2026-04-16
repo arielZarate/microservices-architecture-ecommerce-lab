@@ -9,12 +9,7 @@ import lombok.Setter;
 @Table(name = "product")
 @Getter
 @Setter
-public class ProductEntity {
-
-    @Id
-    @Column(name = "product_id")
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long productId;
+public class ProductEntity extends BaseEntity {
 
     @Column(name = "title", nullable = false)
     private String title;
@@ -25,12 +20,9 @@ public class ProductEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    //todo: luego se vinculara con una tabla categories
-    @Column(name = "category")
-    private String category;
-
-    @Column(name = "active", nullable = false)
-    private Boolean active = true;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private CategoryEntity category;
 
     @Column(name = "image_url")
     private String imageUrl;
