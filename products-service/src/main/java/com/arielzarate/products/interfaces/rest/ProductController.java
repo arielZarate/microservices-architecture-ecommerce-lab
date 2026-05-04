@@ -47,6 +47,10 @@ public class ProductController {
 
     }
 
+    @Operation(
+            summary = "create Product",
+            description = "Return a product create in database"
+    )
     @PostMapping
     public ResponseEntity<ProductResponseDTO> createProduct(@RequestBody ProductRequestDTO request) {
         log.info("Request POST create Product");
