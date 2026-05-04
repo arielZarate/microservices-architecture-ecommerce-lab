@@ -12,30 +12,40 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ProductsMapper {
 
-    @Mapping(target = "category", source = "category.name")
+    /**
+     * Mapping entity to Domain
+     */
+    @Mapping(target = "categoryId", source = "category.id")
     @Mapping(target = "productId", source = "id")
     @Mapping(target = "active", source = "isActive")
     @Mapping(target = "rating", source = "rating")
+    @Mapping(target = "imageUrl", source = "imageUrl")
     Product toDomain(ProductEntity entity);
 
-    //MAPPING
     Rating toDomain(RatingEntity entity);
 
-    RatingEntity toEntity(Rating rating);
 
-    @Mapping(target = "category", ignore = true)
+    /***Mapping Domain to Entity - create - update**/
+    // @Mapping(target = "categoryId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "isActive", ignore = true)
+    @Mapping(target = "rating", source = "rating")
+    @Mapping(target = "imageUrl", source = "imageUrl")
+    @Mapping(target = "id", source = "productId")
     ProductEntity toEntity(Product domain);
+
+    RatingEntity toEntity(Rating rating);
 
 
     /**
-     * FAKE-STORE-API
+     * Mapping FAKE-STORE-API -create
+     * category-> ignored
+     * id-> ignored
      **/
     @Mapping(target = "category", ignore = true)
-    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "id", ignore = true) //create by db auto-incremental
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)

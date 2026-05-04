@@ -7,8 +7,14 @@ import java.util.Optional;
 
 public interface ProductProvider {
     List<Product> fetchOrCreateProducts();
+
     Optional<Product> findProductById(Long productId);
+
     Product saveProduct(Product product);
-    Boolean deleteLogicProduct(Long productId);
-    Boolean activeProduct(Long productId);
+
+//    Product updateProduct(Product product, Long productId);
+//
+//    Boolean deleteLogicProduct(Long productId);
+//
+//    Boolean activeProduct(Long productId);
 }

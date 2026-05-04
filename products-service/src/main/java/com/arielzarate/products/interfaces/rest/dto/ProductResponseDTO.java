@@ -17,8 +17,8 @@ public record ProductResponseDTO(
         @Schema(description = "Product description", example = "Your perfect pack for everyday use...")
         String description,
 
-        @Schema(description = "Product category", example = "men's clothing")
-        String category,
+        @Schema(description = "Product category", example = "1")
+        Long categoryId,
 
         @Schema(description = "Product active status", example = "true")
         Boolean active,

@@ -11,7 +11,9 @@ import com.arielzarate.products.infraestructure.persistence.repository.CategoryR
 import com.arielzarate.products.infraestructure.persistence.repository.ProductRepository;
 import com.arielzarate.products.infraestructure.rest.FakeStoreClient;
 import com.arielzarate.products.infraestructure.rest.models.FakeStoreProductResponse;
-import lombok.RequiredArgsConstructor;
+import com.arielzarate.products.interfaces.errors.exception.ApplicationErrorException;
+import com.arielzarate.products.interfaces.errors.model.ApplicationError;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +23,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class ProductAdapter implements ProductProvider {
 
     private final ProductsMapper productsMapper;
@@ -55,7 +57,7 @@ public class ProductAdapter implements ProductProvider {
         if (list.isEmpty()) {
             List<FakeStoreProductResponse> productsFetch = fakeStoreClient.getAllProducts();
 
-            List<ProductEntity> entities = productsFetch.stream()
+            List<ProductEntity> productsEntities = productsFetch.stream()
                     .map(product -> {
                         //1.Map to entitie
                         ProductEntity entity = productsMapper.toEntity(product);
@@ -67,10 +69,10 @@ public class ProductAdapter implements ProductProvider {
                     })
                     .toList();
 
-            productRepository.saveAll(entities);
+            productRepository.saveAll(productsEntities);
             log.info("saving products FakeStoreApi in database");
 
-            list = entities.stream().map(productsMapper::toDomain).collect(Collectors.toList());
+            list = productsEntities.stream().map(productsMapper::toDomain).collect(Collectors.toList());
         }
         return list;
     }
@@ -82,17 +84,29 @@ public class ProductAdapter implements ProductProvider {
 
     @Override
     public Product saveProduct(Product product) {
-        ProductEntity entity = productRepository.save(productsMapper.toEntity(product));
-        return productsMapper.toDomain(entity);
+        log.info("Product: {}", product.toString());
+        ProductEntity entity = productsMapper.toEntity(product);
+
+        //before find category by id
+        CategoryEntity category = categoryRepository.findById(product.getCategoryId())
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Category not found")));
+        entity.setCategory(category);
+
+        return productsMapper.toDomain(productRepository.save(entity));
     }
 
-    @Override
-    public Boolean deleteLogicProduct(Long productId) {
-        return productRepository.deletedLogicProduct(productId);
-    }
-
-    @Override
-    public Boolean activeProduct(Long productId) {
-        return productRepository.activeProduct(productId);
-    }
+//    @Override
+//    public Product updateProduct(Product product, Long productId) {
+//        return productsMapper.toDomain(productRepository.updateProduct(productsMapper.toEntity(product), productId));
+//    }
+//
+//    @Override
+//    public Boolean deleteLogicProduct(Long productId) {
+//        return productRepository.deletedLogicProduct(productId);
+//    }
+//
+//    @Override
+//    public Boolean activeProduct(Long productId) {
+//        return productRepository.activeProduct(productId);
+//    }
 }

@@ -10,11 +10,13 @@ public interface ProductService {
 
     Product getProductById(Long productId);
 
-    Product updateProduct(Product product, Long productId);
-
     Product createProduct(Product product);
 
-    Boolean deleteLogicProduct(Long productId);
-
-    Boolean activeLogicProduct(Long idProduct);
+//    Product updateProduct(Product product, Long productId);
+//
+//    Product createProduct(Product product);
+//
+//    Boolean deleteLogicProduct(Long productId);
+//
+//    Boolean activeLogicProduct(Long idProduct);
 }
