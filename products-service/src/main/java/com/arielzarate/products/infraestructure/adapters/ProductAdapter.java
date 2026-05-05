@@ -78,6 +78,30 @@ public class ProductAdapter implements ProductProvider {
     }
 
     @Override
+    public List<Product> getProducts(Long categoryId, String search) {
+        // If both filters are null/blank, return all products (original behavior)
+        if (categoryId == null && (search == null || search.isBlank())) {
+            return fetchOrCreateProducts();
+        }
+
+        // Apply filters based on what is provided
+        List<ProductEntity> entities;
+
+        if (categoryId != null && search != null && !search.isBlank()) {
+            // Both filters applied
+            entities = productRepository.findByCategoryIdAndTitleContainingIgnoreCase(categoryId, search);
+        } else if (categoryId != null && (search == null || search.isBlank())) {
+            // Only categoryId filter
+            entities = productRepository.findByCategoryId(categoryId);
+        } else {
+            // Only search filter
+            entities = productRepository.findByTitleContainingIgnoreCase(search);
+        }
+
+        return entities.stream().map(productsMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<Product> findProductById(Long productId) {
         return productRepository.findById(productId).map(productsMapper::toDomain);
     }

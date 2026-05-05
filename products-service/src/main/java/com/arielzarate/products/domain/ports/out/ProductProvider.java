@@ -8,6 +8,8 @@ import java.util.Optional;
 public interface ProductProvider {
     List<Product> fetchOrCreateProducts();
 
+    List<Product> getProducts(Long categoryId, String search);
+
     Optional<Product> findProductById(Long productId);
 
     Product saveProduct(Product product);

@@ -20,8 +20,13 @@ public class ProductUseCase implements ProductService {
     private final ProductProvider productsProvider;
 
     @Override
-    public List<Product> getAllProducts() {
-        return productsProvider.fetchOrCreateProducts();
+    public List<Product> getAllProducts(Long categoryId, String search) {
+        // Validate search term has at least 2 characters if provided
+        if (search != null && !search.isBlank() && search.length() < 2) {
+            throw new ApplicationErrorException(ApplicationError.badRequest("Search term must be at least 2 characters"));
+        }
+        // Delegate to provider with optional filters
+        return productsProvider.getProducts(categoryId, search);
     }
 
     @Override

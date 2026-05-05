@@ -232,31 +232,196 @@ public interface ProductMapper {
 }
 ```
 
+## Modelos y DTOs
+
+### Domain Models
+
+**Product**
+```java
+public class Product {
+    private Long productId;
+    private String title;
+    private Double price;
+    private String description;
+    private Long categoryId;
+    private Boolean active;
+    private String imageUrl;
+    private Rating rating;
+}
+```
+
+**Category**
+```java
+public class Category {
+    private Long categoryId;
+    private String name;
+}
+```
+
+**Rating**
+```java
+public class Rating {
+    private Double rate;
+    private Integer count;
+}
+```
+
+### DTOs
+
+**ProductRequestDTO** (POST/PUT)
+```java
+public class ProductRequestDTO {
+    private String title;           // required
+    private Double price;          // required, > 0
+    private String description;     // optional
+    private Long categoryId;        // required, > 0
+    private String imageUrl;        // optional
+    private RatingRequestDTO rating; // optional
+}
+```
+
+**ProductResponseDTO** (GET response)
+```java
+public record ProductResponseDTO(
+    Long productId,
+    String title,
+    Double price,
+    String description,
+    Long categoryId,
+    Boolean active,
+    String imageUrl,
+    RatingResponseDTO rating
+)
+```
+
+### BaseEntity (Soft Delete)
+
+```java
+@MappedSuperclass
+public abstract class BaseEntity {
+    private Long id;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt;
+    private Boolean isActive = true;
+    
+    public void softDelete() {
+        this.isActive = false;
+        this.deletedAt = LocalDateTime.now();
+    }
+    
+    public void softActive() {
+        this.isActive = true;
+        this.deletedAt = null;
+    }
+}
+```
+
 ## Endpoints
 
 ### Productos
 | Método | Endpoint | Descripción | Status Codes |
 |--------|----------|-------------|--------------|
-| GET | `/api/v1/products` | Listar todos los productos | 200, 500 |
-| GET | `/api/v1/products/{id}` | Obtener producto por ID | 200, 404, 500 |
-| POST | `/api/v1/products` | Crear producto | 201, 400, 500 |
-| PUT | `/api/v1/products/{id}` | Actualizar producto | 200, 400, 404, 500 |
-| DELETE | `/api/v1/products/{id}` | Soft delete (isActive=false) | 204, 404, 500 |
-| POST | `/api/v1/products/{id}/activate` | Soft activate (isActive=true) | 204, 404, 500 |
+| GET | `/api/products` | Listar todos los productos (opcional: ?categoryId=1&search=jacket) | 200, 500 |
+| GET | `/api/products/{id}` | Obtener producto por ID | 200, 404, 500 |
+| POST | `/api/products` | Crear producto | 201, 400, 500 |
+| PUT | `/api/products/{id}` | Actualizar producto | 200, 400, 404, 500 |
+| DELETE | `/api/products/{id}` | Soft delete (isActive=false) | 204, 404, 500 |
+| POST | `/api/products/{id}/activate` | Soft activate (isActive=true) | 204, 404, 500 |
 
-**Nota**: DELETE y POST /activate implementan soft delete/activate usando el campo `isActive` de `BaseEntity`.
+### Categorías
+| Método | Endpoint | Descripción | Status Codes |
+|--------|----------|-------------|--------------|
+| GET | `/api/categories` | Listar todas las categorías | 200, 500 |
+| GET | `/api/categories/{id}` | Obtener categoría por ID | 200, 404, 500 |
+
+**Filtros opcionales en GET /products:**
+- `categoryId`: Filtrar por ID de categoría
+- `search`: Buscar por nombre de producto (mínimo 2 caracteres)
+- Ejemplo: `GET /api/products?categoryId=1&search=jacket`
+
+**Soft Delete/Activate:**
+- DELETE y POST /activate usan el campo `isActive` de `BaseEntity`
+- No eliminan físicamente el registro, solo lo desactivan
+
+## Filtros de Productos
+
+### Spring Data JPA Derived Queries
+
+El repository utiliza métodos de Spring Data JPA que generan JPQL automáticamente:
+
+```java
+@Repository
+public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
+    List<ProductEntity> findByCategoryId(Long categoryId);
+    List<ProductEntity> findByTitleContainingIgnoreCase(String title);
+    List<ProductEntity> findByCategoryIdAndTitleContainingIgnoreCase(Long categoryId, String title);
+}
+```
+
+### Lógica de Filtrado (ProductAdapter)
+
+```java
+@Override
+public List<Product> getProducts(Long categoryId, String search) {
+    // If both filters are null/blank, return all products (original behavior)
+    if (categoryId == null && (search == null || search.isBlank())) {
+        return fetchOrCreateProducts();
+    }
+
+    // Apply filters based on what is provided
+    List<ProductEntity> entities;
+
+    if (categoryId != null && search != null && !search.isBlank()) {
+        // Both filters applied
+        entities = productRepository.findByCategoryIdAndTitleContainingIgnoreCase(categoryId, search);
+    } else if (categoryId != null && (search == null || search.isBlank())) {
+        // Only categoryId filter
+        entities = productRepository.findByCategoryId(categoryId);
+    } else {
+        // Only search filter
+        entities = productRepository.findByTitleContainingIgnoreCase(search);
+    }
+
+    return entities.stream().map(productsMapper::toDomain).collect(Collectors.toList());
+}
+```
+
+### Validación (ProductUseCase)
+
+```java
+@Override
+public List<Product> getAllProducts(Long categoryId, String search) {
+    // Validate search term has at least 2 characters if provided
+    if (search != null && !search.isBlank() && search.length() < 2) {
+        throw new ApplicationErrorException(ApplicationError.badRequest("Search term must be at least 2 characters"));
+    }
+    // Delegate to provider with optional filters
+    return productsProvider.getProducts(categoryId, search);
+}
+```
+
+### Uso
+
+| Request | Resultado |
+|---------|-----------|
+| `GET /api/products` | Todos los productos |
+| `GET /api/products?categoryId=1` | Productos de categoría 1 |
+| `GET /api/products?search=jacket` | Productos con "jacket" (mín 2 caracteres) |
+| `GET /api/products?categoryId=1&search=jacket` | Ambos filtros |
+| `GET /api/products?search=a` | 400 Bad Request (menos de 2 caracteres) |
 
 ### Actuator
 | Endpoint | Descripción |
 |----------|-------------|
-| `/api/v1/actuator/health` | Estado de salud del servicio |
-| `/api/v1/actuator/info` | Información del build |
+| `/api/actuator/health` | Estado de salud del servicio |
+| `/api/actuator/info` | Información del build |
 
 ### Swagger
 | Endpoint | Descripción |
 |----------|-------------|
-| `/swagger-ui.html` | UI de Swagger |
-| `/api-docs` | Documentación OpenAPI |
+| `/api/swagger-ui.html` | UI de Swagger |
+| `/api/api-docs` | Documentación OpenAPI |
 
 ## Configuración
 

@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -38,13 +39,24 @@ public class ProductController {
     private final ProductService service;
     private final ProductMapperDTO productMapper;
 
-    @Operation(summary = "Get all products", description = "Returns a list of all products. If database is empty, fetches from FakeStore API.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Products retrieved successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class))), @ApiResponse(responseCode = "500", description = "Internal server error")})
+
+    //===============FILTER BY CATEGORY OR/AND JACKET=======================
+    @Operation(summary = "Get all products", description = "Returns a list of all products. Optional filters: categoryId, search (by title). If database is empty, fetches from FakeStore API.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Products retrieved successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     @GetMapping
-    public ResponseEntity<List<ProductResponseDTO>> getProducts() {
+    public ResponseEntity<List<ProductResponseDTO>> getProducts(
+            @Parameter(description = "Filter by category ID", example = "1") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "Search by product title", example = "jacket") @RequestParam(required = false) String search
+    ) {
 
         log.info("Request GET all products");
-        List<ProductResponseDTO> list = service.getAllProducts().stream().map(productMapper::mapToProductDTO).toList();
+        List<ProductResponseDTO> list = service.getAllProducts(categoryId,search)
+                .stream()
+                .map(productMapper::mapToProductDTO)
+                .toList();
 
         log.info("Response GET all products");
         return ResponseEntity.ok().body(list);
@@ -112,5 +124,6 @@ public class ProductController {
         log.info("Response ACTIVATE Product");
         return ResponseEntity.noContent().build();
     }
+
 
 }
