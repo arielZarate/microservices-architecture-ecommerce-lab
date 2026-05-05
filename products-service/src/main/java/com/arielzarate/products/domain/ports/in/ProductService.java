@@ -6,17 +6,15 @@ import java.util.List;
 
 public interface ProductService {
 
-    List<Product> getAllProducts();
+    List<Product> getAllProducts(Long categoryId, String search);
 
     Product getProductById(Long productId);
 
     Product createProduct(Product product);
 
-//    Product updateProduct(Product product, Long productId);
-//
-//    Product createProduct(Product product);
-//
-//    Boolean deleteLogicProduct(Long productId);
-//
-//    Boolean activeLogicProduct(Long idProduct);
+    Product updateProduct(Product product, Long productId);
+
+    void deleteLogicProduct(Long productId);
+
+    void activeLogicProduct(Long idProduct);
 }

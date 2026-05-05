@@ -78,6 +78,30 @@ public class ProductAdapter implements ProductProvider {
     }
 
     @Override
+    public List<Product> getProducts(Long categoryId, String search) {
+        // If both filters are null/blank, return all products (original behavior)
+        if (categoryId == null && (search == null || search.isBlank())) {
+            return fetchOrCreateProducts();
+        }
+
+        // Apply filters based on what is provided
+        List<ProductEntity> entities;
+
+        if (categoryId != null && search != null && !search.isBlank()) {
+            // Both filters applied
+            entities = productRepository.findByCategoryIdAndTitleContainingIgnoreCase(categoryId, search);
+        } else if (categoryId != null && (search == null || search.isBlank())) {
+            // Only categoryId filter
+            entities = productRepository.findByCategoryId(categoryId);
+        } else {
+            // Only search filter
+            entities = productRepository.findByTitleContainingIgnoreCase(search);
+        }
+
+        return entities.stream().map(productsMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<Product> findProductById(Long productId) {
         return productRepository.findById(productId).map(productsMapper::toDomain);
     }
@@ -95,18 +119,35 @@ public class ProductAdapter implements ProductProvider {
         return productsMapper.toDomain(productRepository.save(entity));
     }
 
-//    @Override
-//    public Product updateProduct(Product product, Long productId) {
-//        return productsMapper.toDomain(productRepository.updateProduct(productsMapper.toEntity(product), productId));
-//    }
-//
-//    @Override
-//    public Boolean deleteLogicProduct(Long productId) {
-//        return productRepository.deletedLogicProduct(productId);
-//    }
-//
-//    @Override
-//    public Boolean activeProduct(Long productId) {
-//        return productRepository.activeProduct(productId);
-//    }
+    @Override
+    public Product updateProduct(Product product, Long productId) {
+        ProductEntity entity = productsMapper.toEntity(product);
+        /**
+         * The Category is Class , first find by Id , after matching
+         * */
+        CategoryEntity category = categoryRepository.findById(product.getCategoryId())
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Category not found")));
+
+        //setting objet
+        entity.setCategory(category);
+
+        return productsMapper.toDomain(productRepository.save(entity));
+    }
+
+
+    @Override
+    public void deleteLogicProduct(Long productId) {
+        ProductEntity entity = productRepository.findById(productId)
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Product with id: " + productId + " not found")));
+        entity.softDelete();
+        productRepository.save(entity);
+    }
+
+    @Override
+    public void activeProduct(Long productId) {
+        ProductEntity entity = productRepository.findById(productId)
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Product with id: " + productId + " not found")));
+        entity.softActive();
+        productRepository.save(entity);
+    }
 }

@@ -8,13 +8,15 @@ import java.util.Optional;
 public interface ProductProvider {
     List<Product> fetchOrCreateProducts();
 
+    List<Product> getProducts(Long categoryId, String search);
+
     Optional<Product> findProductById(Long productId);
 
     Product saveProduct(Product product);
 
-//    Product updateProduct(Product product, Long productId);
-//
-//    Boolean deleteLogicProduct(Long productId);
-//
-//    Boolean activeProduct(Long productId);
+    Product updateProduct(Product product, Long productId);
+
+    void deleteLogicProduct(Long productId);
+
+    void  activeProduct(Long productId);
 }

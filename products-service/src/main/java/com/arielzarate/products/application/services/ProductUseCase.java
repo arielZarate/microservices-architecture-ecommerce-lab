@@ -20,8 +20,13 @@ public class ProductUseCase implements ProductService {
     private final ProductProvider productsProvider;
 
     @Override
-    public List<Product> getAllProducts() {
-        return productsProvider.fetchOrCreateProducts();
+    public List<Product> getAllProducts(Long categoryId, String search) {
+        // Validate search term has at least 2 characters if provided
+        if (search != null && !search.isBlank() && search.length() < 2) {
+            throw new ApplicationErrorException(ApplicationError.badRequest("Search term must be at least 2 characters"));
+        }
+        // Delegate to provider with optional filters
+        return productsProvider.getProducts(categoryId, search);
     }
 
     @Override
@@ -29,41 +34,48 @@ public class ProductUseCase implements ProductService {
         return productsProvider.findProductById(productId)
                 .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Product with id: " + productId + " not found")));
     }
-//
-//    @Override
-//    public Product updateProduct(Product product, Long productId) {
-//        Product existing = getProductById(productId);
-//        existing.setTitle(product.getTitle());
-//        existing.setPrice(product.getPrice());
-//        existing.setDescription(product.getDescription());
-//        existing.setImageUrl(product.getImageUrl());
-//        existing.setCategory(product.getCategory());
-//        existing.setRating(product.getRating());
-//
-//        return productsProvider.updateProduct(existing, productId);
-//
-//    }
+
+    @Override
+    public Product updateProduct(Product product, Long productId) {
+        Product existing = getProductById(productId);
+        if (!validateProduct(product)) {
+            throw new ApplicationErrorException(ApplicationError.badRequest("Invalid product data"));
+        }
+
+        existing.setTitle(product.getTitle());
+        existing.setPrice(product.getPrice());
+        existing.setDescription(product.getDescription());
+        existing.setImageUrl(product.getImageUrl());
+        existing.setCategoryId(product.getCategoryId());
+        existing.setRating(product.getRating());
+
+        return productsProvider.updateProduct(existing, productId);
+
+    }
 
     @Override
     public Product createProduct(Product product) {
-        log.info("use case product create : {} ", product.toString());
         if (!validateProduct(product)) {
             throw new ApplicationErrorException(ApplicationError.badRequest("Invalid product data"));
         }
         return productsProvider.saveProduct(product);
     }
 
-//    @Override
-//    public Boolean deleteLogicProduct(Long id) {
-//        Product p = getProductById(id);
-//        return productsProvider.deleteLogicProduct(p.getProductId());
-//    }
-//
-//    @Override
-//    public Boolean activeLogicProduct(Long id) {
-//        Product p = getProductById(id);
-//        return productsProvider.activeProduct(p.getProductId());
-//    }
+    // log.info("use case product update : {} ", product.toString());
+
+    @Override
+    public void deleteLogicProduct(Long id) {
+        Product p = getProductById(id);
+        productsProvider.deleteLogicProduct(p.getProductId());
+        log.info("Product {} soft deleted", p.getProductId());
+    }
+
+    @Override
+    public void activeLogicProduct(Long id) {
+        Product p = getProductById(id);
+         productsProvider.activeProduct(p.getProductId());
+        log.info("Product {} soft activated", p.getProductId());
+    }
 
 
     //validate product creating
