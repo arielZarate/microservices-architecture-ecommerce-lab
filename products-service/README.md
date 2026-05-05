@@ -108,8 +108,8 @@ springdoc:
 
 | Tipo | URL | Descripción |
 |------|-----|-------------|
-| **UI Web** | `http://localhost:8080/api/v1/swagger-ui.html` | Interfaz visual interactiva |
-| **JSON** | `http://localhost:8080/api/v1/api-docs` | Especificación OpenAPI en JSON |
+| **UI Web** | `http://localhost:8080/api/swagger-ui.html` | Interfaz visual interactiva |
+| **JSON** | `http://localhost:8080/api/api-docs` | Especificación OpenAPI en JSON |
 
 ### Ejemplo de Documentación
 
@@ -235,13 +235,16 @@ public interface ProductMapper {
 ## Endpoints
 
 ### Productos
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/v1/products` | Listar todos los productos |
-| GET | `/api/v1/products/{id}` | Obtener producto por ID |
-| POST | `/api/v1/products` | Crear producto |
-| PUT | `/api/v1/products/{id}` | Actualizar producto |
-| DELETE | `/api/v1/products/{id}` | Eliminar producto |
+| Método | Endpoint | Descripción | Status Codes |
+|--------|----------|-------------|--------------|
+| GET | `/api/v1/products` | Listar todos los productos | 200, 500 |
+| GET | `/api/v1/products/{id}` | Obtener producto por ID | 200, 404, 500 |
+| POST | `/api/v1/products` | Crear producto | 201, 400, 500 |
+| PUT | `/api/v1/products/{id}` | Actualizar producto | 200, 400, 404, 500 |
+| DELETE | `/api/v1/products/{id}` | Soft delete (isActive=false) | 204, 404, 500 |
+| POST | `/api/v1/products/{id}/activate` | Soft activate (isActive=true) | 204, 404, 500 |
+
+**Nota**: DELETE y POST /activate implementan soft delete/activate usando el campo `isActive` de `BaseEntity`.
 
 ### Actuator
 | Endpoint | Descripción |
@@ -260,11 +263,11 @@ public interface ProductMapper {
 ```yaml
 server:
   servlet:
-    context-path: /api/v1
+    context-path: /api
 
 spring:
   application:
-    name: products
+    name: products-service
 
   datasource:
     url: jdbc:postgresql://localhost:5432/products_management
@@ -311,7 +314,7 @@ mvn clean compile
 mvn spring-boot:run
 ```
 
-El servicio estará disponible en: `http://localhost:8080/api/v1`
+El servicio estará disponible en: `http://localhost:8080/api`
 
 ## Licencia
 

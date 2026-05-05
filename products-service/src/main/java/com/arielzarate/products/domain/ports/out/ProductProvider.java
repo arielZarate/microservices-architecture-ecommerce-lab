@@ -14,7 +14,7 @@ public interface ProductProvider {
 
     Product updateProduct(Product product, Long productId);
 
-    Boolean deleteLogicProduct(Long productId);
+    void deleteLogicProduct(Long productId);
 
-//    Boolean activeProduct(Long productId);
+    void  activeProduct(Long productId);
 }

@@ -59,16 +59,18 @@ public class ProductUseCase implements ProductService {
     // log.info("use case product update : {} ", product.toString());
 
     @Override
-    public Boolean deleteLogicProduct(Long id) {
+    public void deleteLogicProduct(Long id) {
         Product p = getProductById(id);
-        return productsProvider.deleteLogicProduct(p.getProductId());
+        productsProvider.deleteLogicProduct(p.getProductId());
+        log.info("Product {} soft deleted", p.getProductId());
     }
 
-//    @Override
-//    public Boolean activeLogicProduct(Long id) {
-//        Product p = getProductById(id);
-//        return productsProvider.activeProduct(p.getProductId());
-//    }
+    @Override
+    public void activeLogicProduct(Long id) {
+        Product p = getProductById(id);
+         productsProvider.activeProduct(p.getProductId());
+        log.info("Product {} soft activated", p.getProductId());
+    }
 
 
     //validate product creating

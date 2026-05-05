@@ -111,13 +111,19 @@ public class ProductAdapter implements ProductProvider {
     }
 
 
-//    @Override
-//    public Boolean deleteLogicProduct(Long productId) {
-//        return productRepository.deletedLogicProduct(productId);
-//    }
-//
-//    @Override
-//    public Boolean activeProduct(Long productId) {
-//        return productRepository.activeProduct(productId);
-//    }
+    @Override
+    public void deleteLogicProduct(Long productId) {
+        ProductEntity entity = productRepository.findById(productId)
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Product with id: " + productId + " not found")));
+        entity.softDelete();
+        productRepository.save(entity);
+    }
+
+    @Override
+    public void activeProduct(Long productId) {
+        ProductEntity entity = productRepository.findById(productId)
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Product with id: " + productId + " not found")));
+        entity.softActive();
+        productRepository.save(entity);
+    }
 }
