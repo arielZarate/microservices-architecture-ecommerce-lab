@@ -95,11 +95,22 @@ public class ProductAdapter implements ProductProvider {
         return productsMapper.toDomain(productRepository.save(entity));
     }
 
-//    @Override
-//    public Product updateProduct(Product product, Long productId) {
-//        return productsMapper.toDomain(productRepository.updateProduct(productsMapper.toEntity(product), productId));
-//    }
-//
+    @Override
+    public Product updateProduct(Product product, Long productId) {
+        ProductEntity entity = productsMapper.toEntity(product);
+        /**
+         * The Category is Class , first find by Id , after matching
+         * */
+        CategoryEntity category = categoryRepository.findById(product.getCategoryId())
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Category not found")));
+
+        //setting objet
+        entity.setCategory(category);
+
+        return productsMapper.toDomain(productRepository.save(entity));
+    }
+
+
 //    @Override
 //    public Boolean deleteLogicProduct(Long productId) {
 //        return productRepository.deletedLogicProduct(productId);

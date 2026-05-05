@@ -12,7 +12,9 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ProductMapperDTO {
 
-    /**mapping  Domain to Dto ***/
+    /**
+     * mapping  Domain to Dto
+     ***/
 
     @Mapping(target = "rating", source = "rating")
     ProductResponseDTO mapToProductDTO(Product product);
@@ -20,7 +22,9 @@ public interface ProductMapperDTO {
     RatingResponseDTO mapToRatingDTO(Rating rating);
 
 
-    /**mapping  dto to Domain ***/
+    /**
+     * mapping  dto to Domain
+     ***/
     Rating mapToRating(RatingRequestDTO rating);
 
     @Mapping(target = "rating", source = "rating")

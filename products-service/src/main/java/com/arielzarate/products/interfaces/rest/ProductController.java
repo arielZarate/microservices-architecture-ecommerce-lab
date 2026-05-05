@@ -7,12 +7,19 @@ import com.arielzarate.products.interfaces.rest.dto.ProductRequestDTO;
 import com.arielzarate.products.interfaces.rest.dto.ProductResponseDTO;
 import com.arielzarate.products.interfaces.rest.mapper.ProductMapperDTO;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +40,12 @@ public class ProductController {
             summary = "Get all products",
             description = "Returns a list of all products. If database is empty, fetches from FakeStore API."
     )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Products retrieved successfully", 
+                    content = @Content(mediaType = "application/json", 
+                            schema = @Schema(implementation = ProductResponseDTO.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     @GetMapping
     public ResponseEntity<List<ProductResponseDTO>> getProducts() {
 
@@ -48,24 +61,51 @@ public class ProductController {
     }
 
     @Operation(
-            summary = "create Product",
-            description = "Return a product create in database"
+            summary = "Create a new product",
+            description = "Creates a new product in the database"
     )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Product created successfully",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ProductResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request body"),
+            @ApiResponse(responseCode = "404", description = "Category not found")
+    })
     @PostMapping
-    public ResponseEntity<ProductResponseDTO> createProduct(@RequestBody ProductRequestDTO request) {
+    public ResponseEntity<ProductResponseDTO> createProduct(
+            @Parameter(description = "Product data to create", required = true, 
+                    schema = @Schema(implementation = ProductRequestDTO.class))
+            @RequestBody ProductRequestDTO request) {
         log.info("Request POST create Product");
         Product product = service.createProduct(productMapper.mapDomain(request));
         log.info("Response POST create Product");
         return ResponseEntity.ok(productMapper.mapToProductDTO(product));
     }
 
-//    @PutMapping("/{idProduct}")
-//    public ResponseEntity<ProductResponseDTO> updateProduct(@PathVariable Long idProduct, @RequestBody ProductRequestDTO request) {
-//        log.info("Request PUT update Product");
-//        Product product = service.updateProduct(productMapper.mapDomain(request), idProduct);
-//        log.info("Response PUT update Product");
-//        return ResponseEntity.ok(productMapper.mapProductDTO(product));
-//    }
+
+    @Operation(
+            summary = "Update an existing product",
+            description = "Updates a product by its ID"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Product updated successfully",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ProductResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request body"),
+            @ApiResponse(responseCode = "404", description = "Product or Category not found")
+    })
+    @PutMapping("/{idProduct}")
+    public ResponseEntity<ProductResponseDTO> updateProduct(
+            @Parameter(description = "Product ID to update", required = true) 
+            @PathVariable Long idProduct,
+            @Parameter(description = "Product data to update", required = true,
+                    schema = @Schema(implementation = ProductRequestDTO.class))
+            @RequestBody ProductRequestDTO request) {
+        log.info("Request PUT update Product");
+        Product product = service.updateProduct(productMapper.mapDomain(request), idProduct);
+        log.info("Response PUT update Product");
+        return ResponseEntity.ok(productMapper.mapToProductDTO(product));
+    }
 
 //    @GetMapping
 //    public ResponseEntity<ProductResponseDTO> getProductById(@PathVariable Long idProduct) {

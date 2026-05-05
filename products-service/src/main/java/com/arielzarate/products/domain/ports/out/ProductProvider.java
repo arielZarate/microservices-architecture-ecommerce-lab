@@ -12,8 +12,8 @@ public interface ProductProvider {
 
     Product saveProduct(Product product);
 
-//    Product updateProduct(Product product, Long productId);
-//
+    Product updateProduct(Product product, Long productId);
+
 //    Boolean deleteLogicProduct(Long productId);
 //
 //    Boolean activeProduct(Long productId);

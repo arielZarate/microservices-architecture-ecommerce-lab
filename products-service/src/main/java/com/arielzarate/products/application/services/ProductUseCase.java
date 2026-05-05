@@ -29,29 +29,34 @@ public class ProductUseCase implements ProductService {
         return productsProvider.findProductById(productId)
                 .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Product with id: " + productId + " not found")));
     }
-//
-//    @Override
-//    public Product updateProduct(Product product, Long productId) {
-//        Product existing = getProductById(productId);
-//        existing.setTitle(product.getTitle());
-//        existing.setPrice(product.getPrice());
-//        existing.setDescription(product.getDescription());
-//        existing.setImageUrl(product.getImageUrl());
-//        existing.setCategory(product.getCategory());
-//        existing.setRating(product.getRating());
-//
-//        return productsProvider.updateProduct(existing, productId);
-//
-//    }
+
+    @Override
+    public Product updateProduct(Product product, Long productId) {
+        Product existing = getProductById(productId);
+        if (!validateProduct(product)) {
+            throw new ApplicationErrorException(ApplicationError.badRequest("Invalid product data"));
+        }
+
+        existing.setTitle(product.getTitle());
+        existing.setPrice(product.getPrice());
+        existing.setDescription(product.getDescription());
+        existing.setImageUrl(product.getImageUrl());
+        existing.setCategoryId(product.getCategoryId());
+        existing.setRating(product.getRating());
+
+        return productsProvider.updateProduct(existing, productId);
+
+    }
 
     @Override
     public Product createProduct(Product product) {
-        log.info("use case product create : {} ", product.toString());
         if (!validateProduct(product)) {
             throw new ApplicationErrorException(ApplicationError.badRequest("Invalid product data"));
         }
         return productsProvider.saveProduct(product);
     }
+
+    // log.info("use case product update : {} ", product.toString());
 
 //    @Override
 //    public Boolean deleteLogicProduct(Long id) {

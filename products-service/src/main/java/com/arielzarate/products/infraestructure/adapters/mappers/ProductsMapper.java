@@ -33,7 +33,7 @@ public interface ProductsMapper {
     @Mapping(target = "isActive", ignore = true)
     @Mapping(target = "rating", source = "rating")
     @Mapping(target = "imageUrl", source = "imageUrl")
-    @Mapping(target = "id", source = "productId")
+    @Mapping(target = "id", source = "productId") //if exist productId mapped for el updated method
     ProductEntity toEntity(Product domain);
 
     RatingEntity toEntity(Rating rating);
