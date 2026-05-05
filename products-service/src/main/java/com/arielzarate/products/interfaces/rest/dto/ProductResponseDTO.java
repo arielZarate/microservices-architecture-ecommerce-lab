@@ -26,7 +26,7 @@ public record ProductResponseDTO(
         @Schema(description = "Product image URL", example = "https://fakestoreapi.com/img/81ikpy1kL._AC_UL1500_.jpg")
         String imageUrl,
 
-        @Schema(description = "Product Rating", examples = {"4.5", "400"})
+        @Schema(description = "Product Rating")
         RatingResponseDTO rating
 ) {
 }

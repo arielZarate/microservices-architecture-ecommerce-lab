@@ -13,8 +13,8 @@ public interface ProductService {
     Product createProduct(Product product);
 
     Product updateProduct(Product product, Long productId);
-//
-//    Boolean deleteLogicProduct(Long productId);
-//
+
+    Boolean deleteLogicProduct(Long productId);
+
 //    Boolean activeLogicProduct(Long idProduct);
 }

@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,8 +42,8 @@ public class ProductController {
             description = "Returns a list of all products. If database is empty, fetches from FakeStore API."
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Products retrieved successfully", 
-                    content = @Content(mediaType = "application/json", 
+            @ApiResponse(responseCode = "200", description = "Products retrieved successfully",
+                    content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ProductResponseDTO.class))),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
@@ -65,21 +66,21 @@ public class ProductController {
             description = "Creates a new product in the database"
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Product created successfully",
+            @ApiResponse(responseCode = "201", description = "Product created successfully",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ProductResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request body"),
-            @ApiResponse(responseCode = "404", description = "Category not found")
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @PostMapping
     public ResponseEntity<ProductResponseDTO> createProduct(
-            @Parameter(description = "Product data to create", required = true, 
+            @Parameter(description = "Product data to create", required = true,
                     schema = @Schema(implementation = ProductRequestDTO.class))
             @RequestBody ProductRequestDTO request) {
         log.info("Request POST create Product");
         Product product = service.createProduct(productMapper.mapDomain(request));
         log.info("Response POST create Product");
-        return ResponseEntity.ok(productMapper.mapToProductDTO(product));
+        return ResponseEntity.status(201).body(productMapper.mapToProductDTO(product));
     }
 
 
@@ -92,32 +93,47 @@ public class ProductController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ProductResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request body"),
-            @ApiResponse(responseCode = "404", description = "Product or Category not found")
+            @ApiResponse(responseCode = "404", description = "Product not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @PutMapping("/{idProduct}")
+    @PutMapping("/{productId}")
     public ResponseEntity<ProductResponseDTO> updateProduct(
-            @Parameter(description = "Product ID to update", required = true) 
-            @PathVariable Long idProduct,
+            @Parameter(description = "Product ID to update", required = true)
+            @PathVariable Long productId,
             @Parameter(description = "Product data to update", required = true,
                     schema = @Schema(implementation = ProductRequestDTO.class))
             @RequestBody ProductRequestDTO request) {
         log.info("Request PUT update Product");
-        Product product = service.updateProduct(productMapper.mapDomain(request), idProduct);
+        Product product = service.updateProduct(productMapper.mapDomain(request), productId);
         log.info("Response PUT update Product");
         return ResponseEntity.ok(productMapper.mapToProductDTO(product));
     }
 
-//    @GetMapping
-//    public ResponseEntity<ProductResponseDTO> getProductById(@PathVariable Long idProduct) {
-//        ProductResponseDTO dto = productMapper.mapDTO(service.getProductById(idProduct));
-//        return ResponseEntity.ok(dto);
-//    }
+    @Operation(
+            summary = "Found product by id",
+            description = "Search product in database by ID"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Product found",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ProductResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Product not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    @GetMapping("/{productId}")
+    public ResponseEntity<ProductResponseDTO> getProductById(@PathVariable Long productId) {
+        log.info("Request GET Product by Id= {}", productId);
+        ProductResponseDTO dto = productMapper.mapToProductDTO(service.getProductById(productId));
+        log.info("Response GET Product");
+        return ResponseEntity.ok(dto);
 
-//    @DeleteMapping
-//    public Boolean deletedLogicProductById(@PathVariable Long idProduct) {
-//        return service.deleteLogicProduct(idProduct);
-//    }
-//
+    }
+
+    @DeleteMapping
+    public Boolean deletedLogicProductById(@PathVariable Long idProduct) {
+        return service.deleteLogicProduct(idProduct);
+    }
+
 //    @PostMapping
 //    public Boolean activeLogicProductById(@PathVariable Long idProduct) {
 //        return service.activeLogicProduct(idProduct);

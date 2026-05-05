@@ -58,12 +58,12 @@ public class ProductUseCase implements ProductService {
 
     // log.info("use case product update : {} ", product.toString());
 
-//    @Override
-//    public Boolean deleteLogicProduct(Long id) {
-//        Product p = getProductById(id);
-//        return productsProvider.deleteLogicProduct(p.getProductId());
-//    }
-//
+    @Override
+    public Boolean deleteLogicProduct(Long id) {
+        Product p = getProductById(id);
+        return productsProvider.deleteLogicProduct(p.getProductId());
+    }
+
 //    @Override
 //    public Boolean activeLogicProduct(Long id) {
 //        Product p = getProductById(id);
