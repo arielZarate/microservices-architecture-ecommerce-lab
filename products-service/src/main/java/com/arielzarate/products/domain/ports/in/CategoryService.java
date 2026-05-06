@@ -2,11 +2,18 @@ package com.arielzarate.products.domain.ports.in;
 
 import com.arielzarate.products.domain.models.Category;
 
+import java.util.List;
+
 public interface CategoryService {
 
-    public Category categoryByName(String name);
+    public List<Category> findAllCategory(String name);
+
+    public Category getCategoryById(Long id);
+
     public Category createCategory(String name);
-    public Category updateCategory(String name,Long id);
+
+    public Category updateCategory(String name, Long id);
+
     public Boolean deleteCategory(String name);
 
 }

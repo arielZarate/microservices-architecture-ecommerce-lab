@@ -2,12 +2,22 @@ package com.arielzarate.products.domain.ports.out;
 
 import com.arielzarate.products.domain.models.Category;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface CategoryProvider {
-    public Category getCategoryByName(String name);
-    public Category createCategory(String name);
-    public Category updateCategory(String name, Long id );
-    public Boolean inactiveCategory(String name);
+    List<Category> findAllCategory();
+
+    List<Category> findCategoriesByNameContaining(String name);
+
+    Optional<Category> getCategoryById(Long id);
+
+    Category getCategoryByName(String name);
+
+    Category createCategory(String name);
+
+    Category updateCategory(Category category);
+
+    Boolean inactiveCategory(String name);
 
 }
