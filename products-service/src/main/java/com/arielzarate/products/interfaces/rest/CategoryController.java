@@ -69,16 +69,16 @@ public class CategoryController {
         return ResponseEntity.ok(category);
 
     }
-//
-//    @Operation(summary = "Update category", description = "Updates a category by its ID")
-//    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Category updated successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class))), @ApiResponse(responseCode = "404", description = "Category not found"), @ApiResponse(responseCode = "409", description = "Category name already exists")})
-//    @PutMapping("/{id}")
-//    public ResponseEntity<CategoryResponseDTO> updateCategory(@PathVariable Long id, @RequestBody CategoryRequestDTO request) {
-//        log.info("Request PUT category id = {} name = {}", id, request.getName());
-//        CategoryResponseDTO category = mapper.mapToDTO(categoryService.updateCategory(request.getName(), id));
-//        log.info("Response PUT category ");
-//        return ResponseEntity.ok(category);
-//
-//    }
+
+    @Operation(summary = "Update category", description = "Updates a category by its ID")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Category updated successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class))), @ApiResponse(responseCode = "404", description = "Category not found"), @ApiResponse(responseCode = "409", description = "Category name already exists")})
+    @PutMapping("/{id}")
+    public ResponseEntity<CategoryResponseDTO> updateCategory(@PathVariable Long id, @RequestBody CategoryRequestDTO request) {
+        log.info("Request PUT category id = {} name = {}", id, request.getName());
+        CategoryResponseDTO category = mapper.mapToDTO(categoryService.updateCategory(request.getName(), id));
+        log.info("Response PUT category ");
+        return ResponseEntity.ok(category);
+
+    }
 
 }
