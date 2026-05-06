@@ -108,7 +108,6 @@ public class ProductAdapter implements ProductProvider {
 
     @Override
     public Product saveProduct(Product product) {
-        log.info("Product: {}", product.toString());
         ProductEntity entity = productsMapper.toEntity(product);
 
         //before find category by id
