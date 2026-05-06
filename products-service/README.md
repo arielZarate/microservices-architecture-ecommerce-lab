@@ -6,8 +6,8 @@ Microservicio de gestión de productos que consume la FakeStore API y persiste e
 
 Este servicio:
 1. Consume la API externa FakeStore API (`https://fakestoreapi.com/products`)
-2. Persiste los productos en una base de datos PostgreSQL
-3. Expone endpoints REST para gestionar productos
+2. Persiste los productos y categorías en una base de datos PostgreSQL
+3. Expone endpoints REST para gestionar productos y categorías
 
 **Comportamiento inicial**: Al iniciar, si la base de datos está vacía, automáticamente consume la API externa y guarda los productos.
 
@@ -15,25 +15,25 @@ Este servicio:
 
 ```
 ├── domain/                    # Núcleo de negocio
-│   ├── models/               # Product (modelo del dominio)
+│   ├── models/               # Product, Category (modelos del dominio)
 │   └── ports/
-│       ├── in/              # ProductsService (interfaz de entrada)
-│       └── out/             # ProductsProvider (interfaz de salida)
+│       ├── in/              # ProductService, CategoryService (interfaces de entrada)
+│       └── out/             # ProductProvider, CategoryProvider (interfaces de salida)
 ├── application/              # Casos de uso
-│   └── services/            # ProductsUseCase
+│   └── services/            # ProductUseCase, CategoryUseCase
 ├── infraestructure/          # Implementaciones
-│   ├── adapters/            # ProductsAdapter (persistencia)
-│   │   └── mappers/        # ProductsMapper (MapStruct)
+│   ├── adapters/            # ProductAdapter, CategoryAdapter (persistencia)
+│   │   └── mappers/        # ProductsMapper, CategoryMapper (MapStruct)
 │   ├── rest/               # FakeStoreClient (consumo API externa)
 │   │   ├── config/         # WebClientConfig
 │   │   ├── models/         # FakeStoreProductResponse
 │   │   └── providers/      # WebClientProvider
-│   └── persistence/         # JPA (ProductRepository, ProductEntity)
+│   └── persistence/         # JPA (ProductRepository, CategoryRepository, ProductEntity, CategoryEntity)
 └── interfaces/              # Controllers, DTOs, errores
     └── rest/
-        ├── dto/            # ProductResponseDTO
-        ├── mapper/         # ProductMapper
-        └── ProductController
+        ├── dto/            # ProductResponseDTO, CategoryResponseDTO
+        ├── mapper/         # ProductMapperDTO, CategoryMapperDTO
+        └── ProductController, CategoryController
 ```
 
 ### Flujo de datos
@@ -253,8 +253,9 @@ public class Product {
 **Category**
 ```java
 public class Category {
-    private Long categoryId;
+    private Long id;
     private String name;
+    private Boolean active;
 }
 ```
 
@@ -332,8 +333,12 @@ public abstract class BaseEntity {
 ### Categorías
 | Método | Endpoint | Descripción | Status Codes |
 |--------|----------|-------------|--------------|
-| GET | `/api/categories` | Listar todas las categorías | 200, 500 |
-| GET | `/api/categories/{id}` | Obtener categoría por ID | 200, 404, 500 |
+| GET | `/api/category` | Listar todas las categorías (opcional: ?name=electronics) | 200, 500 |
+| GET | `/api/category/{id}` | Obtener categoría por ID | 200, 404, 500 |
+| POST | `/api/category` | Crear categoría | 201, 409, 500 |
+| PUT | `/api/category/{id}` | Actualizar categoría | 200, 404, 409, 500 |
+| POST | `/api/category/{id}/activate` | Soft activate (isActive=true) | 204, 404, 500 |
+| DELETE | `/api/category/{id}` | Soft delete (isActive=false) | 204, 404, 500 |
 
 **Filtros opcionales en GET /products:**
 - `categoryId`: Filtrar por ID de categoría
