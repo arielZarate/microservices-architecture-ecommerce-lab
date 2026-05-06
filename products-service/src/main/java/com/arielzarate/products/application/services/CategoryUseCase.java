@@ -4,7 +4,6 @@ import com.arielzarate.products.domain.models.Category;
 import com.arielzarate.products.domain.ports.in.CategoryService;
 import com.arielzarate.products.domain.ports.out.CategoryProvider;
 import com.arielzarate.products.infraestructure.adapters.mappers.CategoryMapper;
-import com.arielzarate.products.infraestructure.persistence.models.CategoryEntity;
 import com.arielzarate.products.interfaces.errors.exception.ApplicationErrorException;
 import com.arielzarate.products.interfaces.errors.model.ApplicationError;
 import lombok.AllArgsConstructor;
@@ -60,7 +59,16 @@ public class CategoryUseCase implements CategoryService {
     }
 
     @Override
-    public Boolean deleteCategory(String name) {
-        return null;
+    public void desactiveLogicCategory(Long id) {
+        Category category = getCategoryById(id);
+        categoryProvider.inactiveCategory(category.getId());
+        log.info("Category {} soft deleted", id);
+    }
+
+    @Override
+    public void activeLogicCategory(Long id) {
+        Category category = getCategoryById(id);
+        categoryProvider.activeCategory(category.getId());
+        log.info("Category {} soft activated", category.getId());
     }
 }

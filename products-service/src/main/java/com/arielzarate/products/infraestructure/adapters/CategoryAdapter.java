@@ -47,7 +47,6 @@ public class CategoryAdapter implements CategoryProvider {
     @Override
     public Category getCategoryByName(String name) {
         CategoryEntity categoryEntity = categoryRepository.findByName(name);
-        log.warn("Category entity = {}", categoryEntity);
         return categoryMapper.toDomain(categoryEntity);
     }
 
@@ -60,11 +59,23 @@ public class CategoryAdapter implements CategoryProvider {
     public Category updateCategory(Category category) {
         CategoryEntity entity = categoryMapper.mapToEntity(category);
         entity.setId(category.getId());
+        entity.setName(category.getName());
         return categoryMapper.toDomain(categoryRepository.save(entity));
     }
 
     @Override
-    public Boolean inactiveCategory(String name) {
-        return null;
+    public void inactiveCategory(Long id) {
+        CategoryEntity entity = categoryRepository.findById(id)
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Category not found")));
+        entity.softDelete();
+        categoryRepository.save(entity);
+    }
+
+    @Override
+    public void activeCategory(Long id) {
+        CategoryEntity entity = categoryRepository.findById(id)
+                .orElseThrow(() -> new ApplicationErrorException(ApplicationError.notFoundError("Category not found")));
+        entity.softActive();
+        categoryRepository.save(entity);
     }
 }

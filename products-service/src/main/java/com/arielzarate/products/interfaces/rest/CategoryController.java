@@ -14,8 +14,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -80,6 +81,30 @@ public class CategoryController {
         log.info("Response PUT category ");
         return ResponseEntity.ok(category);
 
+    }
+
+    //======================================
+
+    @Operation(summary = "Activate a category (soft activate)", description = "Activates a category by setting isActive to true")
+    @ApiResponses(value = {@ApiResponse(responseCode = "204", description = "Category activated successfully"), @ApiResponse(responseCode = "404", description = "Category not found"), @ApiResponse(responseCode = "500", description = "Internal server error")})
+    @PostMapping("/{id}/activate")
+    public ResponseEntity<HttpStatus> activateCategory(@PathVariable Long id) {
+        log.info("Request ACTIVATE Category by Id= {}", id);
+        categoryService.activeLogicCategory(id);
+        log.info("Response ACTIVATE Category");
+        return ResponseEntity.noContent().build();
+    }
+
+    //======================================
+
+    @Operation(summary = "Delete a category (soft delete)", description = "Deactivates a category by setting isActive to false")
+    @ApiResponses(value = {@ApiResponse(responseCode = "204", description = "Category deleted successfully"), @ApiResponse(responseCode = "404", description = "Category not found"), @ApiResponse(responseCode = "500", description = "Internal server error")})
+    @DeleteMapping("/{id}")
+    public ResponseEntity<HttpStatus> deleteCategory(@PathVariable Long id) {
+        log.info("Request DELETE Category by Id= {}", id);
+        categoryService.desactiveLogicCategory(id);
+        log.info("Response DELETE Category");
+        return ResponseEntity.noContent().build();
     }
 
 }

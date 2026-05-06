@@ -18,6 +18,8 @@ public interface CategoryProvider {
 
     Category updateCategory(Category category);
 
-    Boolean inactiveCategory(String name);
+    void inactiveCategory(Long id);
+
+    void activeCategory(Long id);
 
 }
