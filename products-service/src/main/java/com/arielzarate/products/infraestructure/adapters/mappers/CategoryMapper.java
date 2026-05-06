@@ -7,19 +7,22 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface CategoryMapper {
-
+    @Mapping(target = "active", source = "isActive")
     Category toDomain(CategoryEntity entity);
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "deletedAt", ignore = true)
-    @Mapping(target = "isActive", ignore = true)
-    CategoryEntity toEntity(Category domain);
+//    @Mapping(target = "id", ignore = true)
+//    @Mapping(target = "createdAt", ignore = true)
+//    @Mapping(target = "updatedAt", ignore = true)
+//    @Mapping(target = "deletedAt", ignore = true)
+//    @Mapping(target = "isActive", ignore = true)
+//    CategoryEntity toEntity(Category category);
 
-    default CategoryEntity toEntity(String name) {
+
+    default CategoryEntity mapToEntity(String name) {
         CategoryEntity entity = new CategoryEntity();
         entity.setName(name);
         return entity;
     }
+
+    CategoryEntity mapToEntity(Category category);
 }

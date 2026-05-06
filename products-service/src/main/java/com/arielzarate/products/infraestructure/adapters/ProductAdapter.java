@@ -46,7 +46,7 @@ public class ProductAdapter implements ProductProvider {
         if (category != null) {
             return category;
         }
-        return categoryRepository.save(categoryMapper.toEntity(categoryName));
+        return categoryRepository.save(categoryMapper.mapToEntity(categoryName));
     }
 
 

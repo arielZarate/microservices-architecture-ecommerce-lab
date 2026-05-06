@@ -30,7 +30,7 @@ public class ErrorHandler {
 
     @ExceptionHandler(ApplicationErrorException.class)
     public ResponseEntity<ClientError> handleApplicationErrorException(ApplicationErrorException ex, HttpServletRequest request) {
-        log.error("Application client error: {}", ex.getMessage());
+        //log.error("Application client error: {}", ex.getMessage());
         ApplicationError error = ex.getError();
         ClientError clientError = new ClientError(
                 "https://httpstatuses.com/" + error.getStatus(),
