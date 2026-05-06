@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,13 +37,13 @@ public class CategoryController {
     private final CategoryMapperDTO mapper;
 
     @Operation(summary = "Create a new category", description = "Creates a new category in the database")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Category created successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class))), @ApiResponse(responseCode = "409", description = "Category already exists")})
+    @ApiResponses(value = {@ApiResponse(responseCode = "201", description = "Category created successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class))), @ApiResponse(responseCode = "409", description = "Category already exists")})
     @PostMapping
     public ResponseEntity<CategoryResponseDTO> createCategory(@RequestBody CategoryRequestDTO request) {
         log.info("Request Post create Category");
         Category category = categoryService.createCategory(mapper.mapToDomain(request));
-        log.info("Response Post create Category = {}", request.getName());
-        return ResponseEntity.ok(mapper.mapToDTO(category));
+        log.info("Response Post create Category = {}", category.getName());
+        return ResponseEntity.status(201).body(mapper.mapToDTO(category));
 
     }
 

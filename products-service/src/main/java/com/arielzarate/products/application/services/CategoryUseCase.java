@@ -55,7 +55,7 @@ public class CategoryUseCase implements CategoryService {
         Category category = categoryOptional.get();
         category.setId(id);
         category.setName(name);
-
+        log.info("Category with id = {} updated and saved", id);
         return categoryProvider.updateCategory(category);
     }
 
