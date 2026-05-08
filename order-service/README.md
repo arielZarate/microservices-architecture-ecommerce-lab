@@ -4,22 +4,55 @@ Microservicio de gestión de órdenes para el e-commerce.
 
 ## Descripción
 
-Este servicio:
-- Gestiona órdenes (creación, listado, actualización de estado)
-- Estados: PENDING, PAID, PREPARING, SHIPPED
-- Se comunica con product-service via HTTP (Axios)
-- Persiste en PostgreSQL con Prisma ORM
-- Autenticación JWT (pendiente)
+Este servicio gestiona el ciclo de vida completo de las órdenes de compra:
+- Creación de órdenes con validación de productos
+- Listado y consulta de órdenes
+- Actualización de estado (PENDING → PAID → PREPARING → SHIPPED → CANCELLED)
+- Soft delete de órdenes
+- Integración con product-service para validación de productos y precios
+- Persistencia en PostgreSQL con Prisma ORM
+- Autenticación JWT
+
+## Arquitectura
+
+### Clean Architecture
+
+```
+Controller (DTO) → Service (clase) → Repository → Prisma → DB
+                    ↓
+              Domain/Entity (Order)
+```
+
+### Estructura de Capas
+
+```
+Routes → Controller (clase, usa interfaz)
+              ↓
+        Service Interface (OrderService)
+              ↓
+        Service Impl (OrderServiceImpl)
+              ↓
+        Prisma → PostgreSQL
+```
+
+### Inyección de Dependencias
+
+```typescript
+// order.route.ts
+const orderService: OrderService = new OrderServiceImpl();
+const orderController = new OrderController(orderService);
+```
+
+- **Controller** recibe `OrderService` (interfaz)
+- **Router** crea `OrderServiceImpl` (implementación) y la pasa
+- Tipado con interfaz: `const orderService: OrderService = new OrderServiceImpl()`
 
 ## Tech Stack
 
 - **Node.js** + **Express** + **TypeScript**
-- **Prisma** ORM
-- **PostgreSQL**
-- **Axios** (comunicación con product-service)
-- **dotenv** (variables de entorno)
-- **morgan** (logging)
-- **cors** (CORS)
+- **Prisma** ORM (acceso a datos)
+- **PostgreSQL** (base de datos)
+- **Axios** (comunicación HTTP con product-service)
 
 ## Estructura del proyecto
 
@@ -30,13 +63,104 @@ order-service/
 │   ├── server.ts                 # Entry point
 │   ├── routes/
 │   │   ├── index.route.ts        # Rutas principales
-│   │   └── order.route.ts        # Rutas de orders
+│   │   └── order.route.ts       # Rutas de orders
+│   ├── controllers/
+│   │   └── order.controller.ts  # Clase controladora
+│   ├── services/
+│   │   └── order/
+│   │       ├── order.service.interface.ts   # Interfaz
+│   │       └── order.service.impl.ts       # Implementación
+│   ├── models/
+│   │   ├── order.model.ts       # Clase Order
+│   │   ├── orderItem.model.ts   # Clase OrderItem
+│   │   └── enum/
+│   │       └── orderStatus.ts    # Enum de estados
+│   ├── controllers/dto/
+│   │   ├── createOrder.dto.ts
+│   │   ├── orderResponse.dto.ts
+│   │   └── orderStatus.dto.ts
 │   └── middlewares/
-│       └── errorHandler.ts       # Manejo de errores
-├── .env                          # Variables de entorno
-├── tsconfig.json                 # Configuración TypeScript
+│       └── errorHandler.ts
+├── .env
+├── tsconfig.json
 ├── package.json
 └── README.md
+```
+
+## Modelos (Clases)
+
+### OrderItem
+
+```typescript
+class OrderItem {
+  private productId: number;
+  private productName: string;
+  private quantity: number;
+  private unitPrice: number;
+
+  constructor(productId, productName, quantity, unitPrice);
+  
+  // Getters y Setters
+  getProductId(): number;
+  setProductId(value: number): void;
+  getProductName(): string;
+  setProductName(value: string): void;
+  getQuantity(): number;
+  setQuantity(value: number): void;
+  getUnitPrice(): number;
+  setUnitPrice(value: number): void;
+  
+  toString(): string;
+}
+```
+
+### Order
+
+```typescript
+class Order {
+  private id: string;
+  private customerId: number;
+  private customerName: string;
+  private customerEmail: string;
+  private items: OrderItem[];
+  private totalAmount: number;
+  private status: OrderStatus;
+  private readonly createdAt: Date;
+  private updatedAt: Date;
+  private deletedAt: Date | null;
+
+  constructor(id, customerId, customerName, customerEmail, items, totalAmount, status);
+  
+  // Getters y Setters para cada campo
+  // ...
+  
+  toString(): string;
+}
+```
+
+## Interfaz del Service
+
+```typescript
+interface OrderService {
+  create(order: Order): Promise<Order>;
+  getAll(): Promise<Order[]>;
+  getById(id: string): Promise<Order | null>;
+  getByCustomerId(customerId: number): Promise<Order[]>;
+  updateStatus(id: string, status: OrderStatus): Promise<Order>;
+  delete(id: string): Promise<void>;
+}
+```
+
+## Estados (OrderStatus)
+
+```typescript
+enum OrderStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  PREPARING = 'PREPARING',
+  SHIPPED = 'SHIPPED',
+  CANCELLED = 'CANCELLED'
+}
 ```
 
 ## Endpoints
@@ -51,51 +175,14 @@ order-service/
 | PUT | `/api/orders/:id/status` | Actualizar estado de orden |
 | DELETE | `/api/orders/:id` | Eliminar orden (soft delete) |
 
-## Estados de Orden
+## Flujo de данных para создание orden
 
-- **PENDING** - Orden creada, esperando pago
-- **PAID** - Pago confirmado
-- **PREPARING** - Preparando envío
-- **SHIPPED** - Enviada
-
-## Manejo de Errores
-
-### Estructura de respuesta de error
-
-```json
-{
-  "error": {
-    "type": "ErrorType",
-    "title": "Mensaje de error",
-    "status": 404
-  }
-}
-```
-
-### Clases disponibles
-
-- **HttpError**: Lanzar errores con código HTTP
-  ```ts
-  throw new HttpError('Orden no encontrada', 404);
-  ```
-
-- **errorHandler**: Middleware que captura errores (usado por Express)
-- **notFoundHandler**: Middleware para rutas no encontradas
-
-## Configuración
-
-### Variables de entorno (.env)
-
-```env
-PORT=3000
-DATABASE_URL=postgresql://postgres:password@localhost:5432/orders_db
-PRODUCT_SERVICE_URL=http://localhost:8080/api
-```
-
-### Puerto
-
-- **Default:** 3000
-- **Configurable** via variable `PORT`
+1. **Frontend** envía JWT en header + items en body
+2. **Middleware JWT** decodifica y guarda datos en `req.user`
+3. **Controller** crea `Order` con datos del token + items
+4. **Service** valida stock con Products (HTTP)
+5. **Service** crea orden en DB
+6. **Response** al cliente
 
 ## Scripts
 
@@ -105,26 +192,17 @@ PRODUCT_SERVICE_URL=http://localhost:8080/api
 | `npm run build` | Compilar TypeScript |
 | `npm run start` | Iniciar producción (node dist/server.js) |
 
-## Estado actual
+## Estado actual del desarrollo
 
 - ✅ Setup básico (Express, TypeScript, dotenv)
-- ✅ Configuración tsconfig
-- ✅ Middlewares (cors, morgan, json)
-- ✅ Rutas configuradas (index, orders)
-- ✅ Error handler centralizado
-- ⏳ Prisma setup (pendiente)
-- ⏳ Modelos de datos (pendiente)
-- ⏳ Implementación endpoints (pendiente)
-- ⏳ Conexión product-service (pendiente)
-- ⏳ JWT middleware (pendiente)
-
-## Próximos pasos
-
-1. Instalar Prisma (`npm install @prisma/client`, `npm install -D prisma`)
-2. Crear schema.prisma con modelos Order, OrderItem
-3. Implementar lógica de endpoints
-4. Conectar con product-service
-5. Agregar JWT
+- ✅ Modelos como clases (Order, OrderItem)
+- ✅ Service interface + implementación
+- ✅ Controller como clase con inyección
+- ✅ Router con inyección de dependencias
+- ⏳ **Prisma setup** (pendiente)
+- ⏳ **Implementación endpoints con DB** (pendiente)
+- ⏳ **Conexión product-service** (pendiente)
+- ⏳ **JWT middleware** (pendiente)
 
 ---
 
