@@ -1,16 +1,22 @@
-import  express from 'express';
-import dotenv from 'dotenv';
+import express from 'express';
 import morgan from 'morgan';
+import cors from 'cors';
 
-dotenv.config();
+import indexRoute from './routes/index.route';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 const app = express();
 
-app.use(express.json());
-app.use(morgan('dev'));
+// Middlewares
+app.use(cors());        //cors en cada request
+app.use(morgan('dev')); //logging en cada request 
+app.use(express.json()); //interceptor de archivos json
 
+// Routes
+app.use('/api', indexRoute);
 
-app.get('/', (req, res) => res.send('Hello World!'))
-
+// Error handlers
+app.use(notFoundHandler); //interceptor de request incorrectos
+app.use(errorHandler);
 
 export default app;
