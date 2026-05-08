@@ -35,11 +35,12 @@ El sistema sigue un enfoque de microservicios desacoplados:
     - Documentación Swagger/OpenAPI
     - Arquitectura hexagonal
 
-- 🟨 **order-service** (Kotlin) SpringBoot ❌ PENDIENTE
-    - gestión de órdenes (creación, listar órdenes)
-    - gestión de estado de órdenes (pendiente, pagada, en preparación, enviada)
-    - Asociación con usuario autenticado
-    - Consumo de product-service
+- 🟨 **order-service** (Node.js + Express + TypeScript + Prisma) 🔄 EN DESARROLLO
+    - Gestión de órdenes (creación, listar órdenes)
+    - Gestión de estado de órdenes (PENDING, PAID, PREPARING, SHIPPED)
+    - Asociación con usuario autenticado (JWT)
+    - Consumo de product-service via Axios
+    - Persistencia en PostgreSQL con Prisma ORM
 
 - 🟦 **user-service** Express/NodeJs o NestJs ❌ PENDIENTE
     - Registro y autenticación
@@ -83,19 +84,18 @@ El sistema sigue un enfoque de microservicios desacoplados:
 ```bash
 microservices-architecture-lab/
 │
-├── user-service/           # ❌ Pendiente (Node.js/Express)
-├── products-service/       # ✅ En desarrollo (Java/Spring Boot)
+├── user-service/           # ✅ Estructura básica (Node.js/Express + TypeScript)
+├── products-service/       # ✅ Completado (Java/Spring Boot)
 │   ├── src/main/java/
 │   │   ├── domain/         # Modelos y puertos
 │   │   ├── application/    # Casos de uso
 │   │   ├── infraestructure/# Adapters, persistence, rest
 │   │   └── interfaces/     # Controllers, DTOs, errores
 │   └── README.md
-├── order-service/          # ❌ Pendiente (Kotlin/Spring Boot)
+├── order-service/          # 🔄 En desarrollo (Node.js/Express + TypeScript + Prisma)
 │
 ├── docker-compose.yml
 └── README.md
-
 ```
 
 ### product-service - Endpoints
@@ -156,11 +156,13 @@ microservices-architecture-lab/
       - POST /products/{id}/activate
       - GET/POST /categories
 
-2. **Microservicio de Órdenes (`order-service`):** ❌ PENDIENTE
-    - Framework: Spring Boot 3.5.13 + Kotlin
-    - Arquitectura: Hexagonal
-    - API: Endpoint para crear órdenes (`/api/orders`)
-    - Persistencia: Spring Data JPA con su propia base de datos PostgreSQL
+2. **Microservicio de Órdenes (`order-service`):** 🔄 EN DESARROLLO
+    - Framework: Node.js + Express + TypeScript
+    - ORM: Prisma
+    - API: Endpoints para crear/listar órdenes (`/api/orders`)
+    - Estados: PENDING, PAID, PREPARING, SHIPPED
+    - Persistencia: Prisma con PostgreSQL
+    - Auth: JWT middleware
 
 ---
 

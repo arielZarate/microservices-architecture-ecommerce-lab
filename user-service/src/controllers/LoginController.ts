@@ -15,3 +15,5 @@ const loginController=(req: Request, res: Response) => {
 
 };
 
+export default loginController 
+
