@@ -259,6 +259,46 @@ microservices-architecture-lab/
 docker-compose up --build
 ```
 
+---
+
+## 📋 Diseño Orders Service (Lab)
+
+### 1. Estados de la orden
+Para arrancar simple, un solo estado: `ENVIADA`.  
+No se manejan `pendiente`, `confirmada`, `cancelada` en esta fase.
+
+### 2. Qué guardar en la orden
+La orden debe ser autosuficiente:
+- **Datos del cliente:** `user_id`, `email`, `nombre` (sacados del JWT, no del body)
+- **Datos del producto por cada item:** `product_id`, `titulo`, `precio`, `cantidad` (snapshot para que la orden no dependa de cambios futuros en Products)
+- **Estado:** `ENVIADA`
+- **Timestamp:** `created_at`
+
+### 3. Token y validación
+- Validación síncrona del JWT en Orders Service
+- Orders recibe `Authorization: Bearer <token>`, valida la firma, extrae el `user_id`
+- No se llama a User Service en cada request
+- Orders y User Service comparten la misma secret key o clave pública
+
+### 4. Kafka vs llamada síncrona a Products
+**Fase actual (síncrono):**
+- Orders llama a `POST /products/validate-stock` y `POST /products/reserve-stock` por HTTP
+- Más simple para debuggear
+
+**Futuro (con Kafka):**
+- Orders publica `OrderCreated` con los items
+- Products escucha, valida y descuenta stock, publica `StockReserved` o `StockRejected`
+- Orders escucha y actualiza el estado
+- Se necesitan endpoints `GET/POST /products/{id}` para consulta directa (Kafka es async)
+
+### Resumen para lab
+1. Validar el JWT en Orders
+2. Llamar síncrono a Products para validar y reservar stock
+3. Crear la orden con estado `ENVIADA` guardando snapshot de precio/nombre
+4. Listo
+
+---
+
 🎯 Objetivo del proyecto
 
 Este proyecto no busca solo funcionar, sino demostrar:
