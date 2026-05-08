@@ -1,16 +1,22 @@
-import  express from 'express';
-import dotenv from 'dotenv';
+import express from 'express';
 import morgan from 'morgan';
+import cors from 'cors';
 
-dotenv.config();
+import indexRoute from './routes/index.route';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 const app = express();
 
-app.use(express.json());
+// Middlewares
+app.use(cors());
 app.use(morgan('dev'));
+app.use(express.json());
 
+// Routes
+app.use('/api', indexRoute);
 
-app.get('/', (req, res) => res.send('Hello World!'))
-
+// Error handlers
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;
