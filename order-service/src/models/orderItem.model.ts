@@ -1,11 +1,11 @@
 export class OrderItem {
-  private productId: number = 0;
-  private productName: string = "";
-  private quantity: number = 0;
-  private unitPrice: number = 0;
+  private productId: string;
+  private productName: string;
+  private quantity: number;
+  private unitPrice: number;
 
   constructor(
-    productId: number,
+    productId: string,
     productName: string,
     quantity: number,
     unitPrice: number
@@ -16,10 +16,10 @@ export class OrderItem {
     this.unitPrice = unitPrice;
   }
 
-  getProductId(): number {
+  getProductId(): string {
     return this.productId;
   }
-  setProductId(value: number): void {
+  setProductId(value: string): void {
     this.productId = value;
   }
 
