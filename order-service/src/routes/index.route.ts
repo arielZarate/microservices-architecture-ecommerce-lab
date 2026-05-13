@@ -1,10 +1,11 @@
 import express from 'express';
-import orderRoute from './order.route';
+import orderRoute from './order.route.js';
+import prisma from '../lib/prisma.js';
 
 const router = express.Router();
 
 // Health check
-router.get('/health', (_req, res) => {
+router.get('/health', (_req: express.Request, res: express.Response) => {
   const uptime = process.uptime();
   const memory = process.memoryUsage();
 
@@ -22,8 +23,8 @@ router.get('/health', (_req, res) => {
 });
 
 // Root
-router.get('/', (_req, res) => {
-  res.send('Microservice ORDER 💥');
+router.get('/', (_req: express.Request, res: express.Response) => {
+  res.send('🔥Microservice ORDER 💥');
 });
 
 // Routes

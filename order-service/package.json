@@ -1,7 +1,7 @@
 {
   "name": "order-service",
   "version": "1.0.0",
-  "description": "",
+  "description": "msvc architecture ecommerce lab - order service",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx --watch src/server.ts",
@@ -9,7 +9,7 @@
     "start": "node dist/server.js"
   },
   "keywords": [],
-  "author": "Ariel Zarate",
+  "author": "arielZarate",
   "license": "ISC",
   "type": "module",
   "devDependencies": {

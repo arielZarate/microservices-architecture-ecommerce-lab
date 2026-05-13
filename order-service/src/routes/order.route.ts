@@ -1,7 +1,7 @@
 import express from 'express';
-import OrderController from '../controllers/order.controller';
-import { OrderService } from '../services/order/order.service.interface';
-import { OrderServiceImpl } from '../services/order/order.service.impl';
+import OrderController from '../controllers/order.controller.js';
+import { OrderService } from '../services/order/order.service.interface.js';
+import { OrderServiceImpl } from '../services/order/order.service.impl.js';
 
 const orderService: OrderService = new OrderServiceImpl();
 const orderController = new OrderController(orderService);

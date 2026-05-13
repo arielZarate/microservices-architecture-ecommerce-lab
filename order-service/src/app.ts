@@ -2,7 +2,7 @@ import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 
-import indexRoute from './routes/index.route';
+import indexRoute from './routes/index.route.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 const app = express();
