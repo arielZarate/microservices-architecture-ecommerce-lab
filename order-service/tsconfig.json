@@ -4,18 +4,17 @@
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
     // File Layout
-     "rootDir": "./src",
+     "rootDir": ".",
      "outDir": "./dist",
 
     // Environment Settings
-    // See also https://aka.ms/tsconfig/module
-    "module": "commonjs",
-    "target": "ES2020",
-    "types": ["node"],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "esModuleInterop": true,
+    "ignoreDeprecations": "6.0",
+  
+
 
     // Other Outputs
     "sourceMap": true,
@@ -36,13 +35,13 @@
 
     // Recommended Options
     "strict": true,
-    "esModuleInterop": true,
     "resolveJsonModule": true,
     //"jsx": "react-jsx",
     //"verbatimModuleSyntax": true,
     //"isolatedModules": true,
-    //"noUncheckedSideEffectImports": true,
+    "noUncheckedSideEffectImports": true,
     //"moduleDetection": "force",
     "skipLibCheck": true,
+   
   }
 }

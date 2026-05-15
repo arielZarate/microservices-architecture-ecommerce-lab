@@ -1,20 +1,19 @@
-import { UUID } from "node:crypto";
-import { OrderStatus } from "../../models/enum/orderStatus";
-import { OrderItem } from "../../models/orderItem.model";
+
+import { OrderItem } from "../../models/orderItem.model.js";
 
 
 export interface OrderResponseDTO {
-  id: UUID;
+  id: string;
 
   //estos datos vienen del token 
   //customerId: number;
   //customerName: string;
   //customerEmail: string;
 
-  token:String //no se si asi  esta bien  
+  token:string //no se si asi  esta bien  
   items: OrderItem[];
   totalAmount: number;
-  status: OrderStatus;
+  status: string;
   createdAt: string;
   updatedAt: string;
 }

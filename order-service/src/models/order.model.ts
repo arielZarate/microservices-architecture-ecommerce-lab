@@ -1,7 +1,7 @@
-import { OrderStatus } from "./enum/orderStatus";
-import { OrderItem } from "./orderItem.model";
+import OrderStatus  from "./enum/orderStatus.js";
+import  OrderItem  from "./orderItem.model.js";
 
-export class Order {
+export default class Order {
    private id: string;
   private customerId: number;
   private customerName: string;
