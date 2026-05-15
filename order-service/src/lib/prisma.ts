@@ -1,8 +1,8 @@
-import "dotenv/config";
+
+/*import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {PrismaClient} from "../../generated/prisma/client.js";
 
-const connectionString = process.env.DATABASE_URL!;
 const adapter = new PrismaPg({ 
 
   host: process.env.DB_HOST ,
@@ -15,7 +15,11 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 
+export default prisma ;
 
+*/
+
+/*
 const testConnection = async () => {
   try {
     await prisma.$connect();
@@ -28,4 +32,4 @@ const testConnection = async () => {
 
 testConnection();   
 
-export default prisma ;
+*/

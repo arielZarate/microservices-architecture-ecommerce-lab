@@ -1,6 +1,6 @@
-import { OrderService } from './order.service.interface';
-import { Order } from '../../models/order.model';
-import { OrderStatus } from '../../models/enum/orderStatus';
+import { OrderService } from './order.service.interface.js';
+import { Order } from '../../models/order.model.js';
+import { OrderStatus } from '../../models/enum/orderStatus.js';
 
 export class OrderServiceImpl implements OrderService {
   async create(order: Order): Promise<Order> {

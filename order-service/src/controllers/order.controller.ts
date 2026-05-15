@@ -1,10 +1,9 @@
 import { type Request, type Response, type NextFunction } from 'express';
-import { HttpError } from '../middlewares/errorHandler';
-import { OrderResponseDTO } from './dto/orderResponse.dto';
-import { CreateOrderDTO } from './dto/createOrder.dto';
-import { OrderStatus } from '../models/enum/orderStatus';
-import { UpdateOrderStatusDTO } from './dto/orderStatus.dto';
-import { OrderService } from '../services/order/order.service.interface';
+import { HttpError } from '../middlewares/errorHandler.js';
+import { OrderResponseDTO } from './dto/orderResponse.dto.js';
+import  CreateOrderDTO  from './dto/createOrder.dto.js';
+import { OrderService } from '../services/order/order.service.interface.js';
+import updateStatusDTO from './dto/updateOrder.dto.js';
 
 
 export default class OrderController {
@@ -29,8 +28,7 @@ export default class OrderController {
 // POST /api/orders - Create order
  createOrder = (req: Request, res: Response): void => {
   const body = req.body as CreateOrderDTO;
-
-  const items=body.items
+  const items=body.items;
 
   // Validaciones
   //if (!body.customerId) {
@@ -42,7 +40,7 @@ export default class OrderController {
   //if (!body.customerEmail) {
   //  throw new HttpError('customerEmail es requerido', 400);
  // }
-  if (!body.items || body.items.length === 0) {
+  if (!body.items) {
     throw new HttpError('La orden debe tener al menos un producto', 400);
   }
 
@@ -57,7 +55,7 @@ export default class OrderController {
 // PUT /api/orders/:id/status - Update order status
  updateOrder = (req: Request, res: Response): void => {
   const { id } = req.params;
-  const { status } = req.body as UpdateOrderStatusDTO;
+  const { status } = req.body as updateStatusDTO;
 
   // // Validar estado
   // const validStatuses = Object.values(OrderStatus);

@@ -1,4 +1,4 @@
-export class OrderItem {
+ class OrderItem {
   private productId: string;
   private productName: string;
   private quantity: number;
@@ -48,3 +48,6 @@ export class OrderItem {
     return `OrderItem(productId=${this.productId}, productName=${this.productName}, quantity=${this.quantity}, unitPrice=${this.unitPrice})`;
   }
 }
+
+
+export default OrderItem;
