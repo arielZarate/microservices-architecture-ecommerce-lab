@@ -58,27 +58,45 @@ const orderController = new OrderController(orderService);
 
 ```
 order-service/
+├── prisma/
+│   ├── schema.prisma             # Modelos Order + OrderItem
+│   └── migrations/
+├── generated/                    # Prisma client
 ├── src/
 │   ├── app.ts                    # Configuración Express
 │   ├── server.ts                 # Entry point
+│   ├── lib/
+│   │   └── prisma.ts            # Prisma client singleton
 │   ├── routes/
-│   │   ├── index.route.ts        # Rutas principales
-│   │   └── order.route.ts       # Rutas de orders
+│   │   ├── index.route.ts        # Agrupador de rutas
+│   │   ├── order.route.ts       # Rutas de orders
+│   │   ├── api.route.ts         # Ruta raíz del microservicio
+│   │   └── health.route.ts      # Health check
 │   ├── controllers/
+│   │   ├── dto/
+│   │   │   ├── createOrder.dto.ts
+│   │   │   ├── orderResponse.dto.ts
+│   │   │   └── updateOrder.dto.ts
+│   │   ├── mapper/              # (vacío)
 │   │   └── order.controller.ts  # Clase controladora
 │   ├── services/
-│   │   └── order/
-│   │       ├── order.service.interface.ts   # Interfaz
-│   │       └── order.service.impl.ts       # Implementación
+│   │   ├── order/
+│   │   │   ├── order.service.interface.ts   # Interfaz
+│   │   │   └── order.service.impl.ts       # Implementación
+│   │   ├── product/
+│   │   │   └── product.client.service.ts   # Cliente HTTP para product-service
+│   │   └── mappers/             # (vacío)
+│   ├── persistence/
+│   │   ├── order/
+│   │   │   ├── order.repository.interface.ts
+│   │   │   └── order.repository.impl.ts
+│   │   └── mappers/
+│   │       └── order.mapper.ts
 │   ├── models/
 │   │   ├── order.model.ts       # Clase Order
 │   │   ├── orderItem.model.ts   # Clase OrderItem
 │   │   └── enum/
-│   │       └── orderStatus.ts    # Enum de estados
-│   ├── controllers/dto/
-│   │   ├── createOrder.dto.ts
-│   │   ├── orderResponse.dto.ts
-│   │   └── orderStatus.dto.ts
+│   │       └── orderStatus.ts   # Enum de estados
 │   └── middlewares/
 │       └── errorHandler.ts
 ├── .env
@@ -168,12 +186,12 @@ enum OrderStatus {
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | GET | `/api/health` | Health check |
-| GET | `/api/` | Mensaje raíz |
-| GET | `/api/orders` | Listar todas las órdenes |
-| GET | `/api/orders/:id` | Obtener orden por ID |
-| POST | `/api/orders` | Crear nueva orden |
-| PUT | `/api/orders/:id/status` | Actualizar estado de orden |
-| DELETE | `/api/orders/:id` | Eliminar orden (soft delete) |
+| GET | `/api/msv` | Mensaje raíz del microservicio |
+| GET | `/api/order` | Listar todas las órdenes |
+| GET | `/api/order/:id` | Obtener orden por ID |
+| POST | `/api/order` | Crear nueva orden |
+| PUT | `/api/order/:id` | Actualizar orden |
+| DELETE | `/api/order/:id` | Eliminar orden (soft delete) |
 
 ## Flujo de данных para создание orden
 
@@ -199,9 +217,10 @@ enum OrderStatus {
 - ✅ Service interface + implementación
 - ✅ Controller como clase con inyección
 - ✅ Router con inyección de dependencias
-- ⏳ **Prisma setup** (pendiente)
-- ⏳ **Implementación endpoints con DB** (pendiente)
-- ⏳ **Conexión product-service** (pendiente)
+- ✅ Schema Prisma + generación de cliente
+- ✅ Repository pattern (interface + implementación con Prisma)
+- ✅ Service implementation con persistencia real
+- ✅ Cliente HTTP para product-service (Axios)
 - ⏳ **JWT middleware** (pendiente)
 
 ---

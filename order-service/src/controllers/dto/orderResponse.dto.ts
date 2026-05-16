@@ -1,19 +1,14 @@
 
-import { OrderItem } from "../../models/orderItem.model.js";
-
 
 export interface OrderResponseDTO {
-  id: string;
+  orderId: string;
 
   //estos datos vienen del token 
   //customerId: number;
   //customerName: string;
   //customerEmail: string;
-
-  token:string //no se si asi  esta bien  
-  items: OrderItem[];
-  totalAmount: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
+//totalAmount: number;
+  //status: string;
+  //createdAt: string;
+  //updatedAt: string;
 }

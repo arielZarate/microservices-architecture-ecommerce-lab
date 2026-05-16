@@ -4,7 +4,7 @@ import { OrderResponseDTO } from './dto/orderResponse.dto.js';
 import  CreateOrderDTO  from './dto/createOrder.dto.js';
 import { OrderService } from '../services/order/order.service.interface.js';
 import updateStatusDTO from './dto/updateOrder.dto.js';
-
+import interceptors_token from '../middlewares/token.interceptor.js';
 
 export default class OrderController {
 
@@ -28,7 +28,7 @@ export default class OrderController {
 // POST /api/orders - Create order
  createOrder = (req: Request, res: Response): void => {
   const body = req.body as CreateOrderDTO;
-  const items=body.items;
+
 
   // Validaciones
   //if (!body.customerId) {
@@ -46,8 +46,6 @@ export default class OrderController {
 
   // TODO: guardar en la base de datos
   console.log('[OrderController] createOrder called with:', body);
-
-
 
   res.status(201).json("Orden creada exitosamente");
 };
