@@ -4,7 +4,8 @@ import { OrderResponseDTO } from './dto/orderResponse.dto.js';
 import  CreateOrderDTO  from './dto/createOrder.dto.js';
 import { OrderService } from '../services/order/order.service.interface.js';
 import updateStatusDTO from './dto/updateOrder.dto.js';
-import interceptors_token from '../middlewares/token.interceptor.js';
+import userContext from '../context/user.context.js';
+
 
 export default class OrderController {
 
@@ -20,33 +21,14 @@ export default class OrderController {
 // GET /api/orders/:id - Get order by ID
  orderById = (req: Request, res: Response): void => {
   const { id } = req.params;
-  // TODO: obtener de la base de datos
-  // throw new HttpError('Orden no encontrada', 404);
   res.json({ message: `Get order ${id} - TODO` });
 };
 
 // POST /api/orders - Create order
  createOrder = (req: Request, res: Response): void => {
   const body = req.body as CreateOrderDTO;
-
-
-  // Validaciones
-  //if (!body.customerId) {
- //   throw new HttpError('customerId es requerido', 400);
-  //}
-  //if (!body.customerName) {
-  //  throw new HttpError('customerName es requerido', 400);
- // }
-  //if (!body.customerEmail) {
-  //  throw new HttpError('customerEmail es requerido', 400);
- // }
-  if (!body.items) {
-    throw new HttpError('La orden debe tener al menos un producto', 400);
-  }
-
   // TODO: guardar en la base de datos
-  console.log('[OrderController] createOrder called with:', body);
-
+  console.log('createOrder called with:', body);
   res.status(201).json("Orden creada exitosamente");
 };
 
@@ -55,16 +37,6 @@ export default class OrderController {
   const { id } = req.params;
   const { status } = req.body as updateStatusDTO;
 
-  // // Validar estado
-  // const validStatuses = Object.values(OrderStatus);
-  // if (!validStatuses.includes(status)) {
-  //   throw new HttpError(
-  //     `Estado inválido. Estados válidos: ${validStatuses.join(', ')}`,
-  //     400
-  //   );
-  
-
- 
   res.json({ message: 'order status updated - TODO' });
 };
 

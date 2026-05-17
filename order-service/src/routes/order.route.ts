@@ -2,6 +2,7 @@ import express from 'express';
 import OrderController from '../controllers/order.controller.js';
 import { OrderService } from '../services/order/order.service.interface.js';
 import { OrderServiceImpl } from '../services/order/order.service.impl.js';
+import middleware_security from '../middlewares/token.interceptor.js';
 //import interceptors_token from '../middlewares/token.interceptor.js';
 
 const orderService: OrderService = new OrderServiceImpl();
@@ -13,7 +14,7 @@ router.get('/', orderController.listOrder.bind(orderController));
 router.get('/:id', orderController.orderById.bind(orderController));
 
 router.post('/' ,
-    //interceptors_token,
+    middleware_security,
     orderController.createOrder.bind(orderController));
 
 
