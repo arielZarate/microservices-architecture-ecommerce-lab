@@ -97,8 +97,11 @@ order-service/
 │   │   ├── orderItem.model.ts   # Clase OrderItem
 │   │   └── enum/
 │   │       └── orderStatus.ts   # Enum de estados
-│   └── middlewares/
-│       └── errorHandler.ts
+│   ├── context/
+│   │   └── user.context.ts        # AsyncLocalStorage para contexto global de usuario
+│   ├── middlewares/
+│   │   ├── token.interceptor.ts   # Middleware JWT con AsyncLocalStorage
+│   │   └── errorHandler.ts
 ├── .env
 ├── tsconfig.json
 ├── package.json
@@ -193,14 +196,106 @@ enum OrderStatus {
 | PUT | `/api/order/:id` | Actualizar orden |
 | DELETE | `/api/order/:id` | Eliminar orden (soft delete) |
 
-## Flujo de данных para создание orden
+## Flujo de datos para creación orden
 
 1. **Frontend** envía JWT en header + items en body
-2. **Middleware JWT** decodifica y guarda datos en `req.user`
-3. **Controller** crea `Order` con datos del token + items
-4. **Service** valida stock con Products (HTTP)
+2. **Middleware JWT** decodifica y guarda en `userContext` (AsyncLocalStorage)
+3. **Controller** crea `Order` con datos del contexto + items
+4. **Service** valida productos con product-service (HTTP)
 5. **Service** crea orden en DB
 6. **Response** al cliente
+
+## Autenticación JWT con AsyncLocalStorage
+
+### Flujo de autenticación
+
+```
+Frontend → Authorization: Bearer <token>
+                ↓
+Middleware token.interceptor.ts
+                ↓
+jwt.verify(token, JWT_SECRET)
+                ↓
+userContext.run(decoded, () => next())
+                ↓
+Request entra en contexto → cualquier layer puede acceder
+```
+
+### Middleware (token.interceptor.ts)
+
+```typescript
+const middleware_security = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'] as string | undefined;
+
+  if (!authHeader) {
+    return res.status(401).json({ message: 'The Token is required' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: 'The Token is invalid' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, secretKey as string) as UserDTO;
+    userContext.run(decoded, () => {
+      next();
+    });
+  } catch (err) {
+    return res.status(401).json({ message: 'The Token is invalid' });
+  }
+};
+```
+
+### Contexto global (user.context.ts)
+
+```typescript
+import { AsyncLocalStorage } from "node:async_hooks";
+
+const userContext = new AsyncLocalStorage<{
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}>();
+
+export default userContext;
+```
+
+### Uso del contexto
+
+En controller, service o repository:
+
+```typescript
+import userContext from '../context/user.context.js';
+
+const user = userContext.getStore();
+// user.id, user.name, user.email, user.role
+```
+
+### Generador de token de prueba
+
+```bash
+# Generar token con node
+node token_generate.js
+```
+
+El token contiene:
+
+```json
+{
+  "id": 1,
+  "name": "Ariel Zarate",
+  "email": "ariel@test.com",
+  "role": "admin"
+}
+```
+
+### Beneficios de AsyncLocalStorage
+
+- **Acceso global**: No necesitás pasar el usuario por parámetros en cada función
+- **Aislamiento por request**: Cada request tiene su propio contexto
+- **Compatible con async/await**: Funciona correctamente con operaciones asíncronas
 
 ## Scripts
 
@@ -221,7 +316,7 @@ enum OrderStatus {
 - ✅ Repository pattern (interface + implementación con Prisma)
 - ✅ Service implementation con persistencia real
 - ✅ Cliente HTTP para product-service (Axios)
-- ⏳ **JWT middleware** (pendiente)
+- ✅ JWT middleware con AsyncLocalStorage
 
 ---
 

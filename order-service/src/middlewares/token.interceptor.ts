@@ -1,33 +1,40 @@
-import { NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
+import jwt from 'jsonwebtoken';
+import userContext from "../context/user.context.js";
+
+const  secretKey = process.env.JWT_SECRET
 
 
-const interceptors_token = (req: Request, res: Response, next: NextFunction) => {
-     // const authHeader = req.headers['authorization'];              
+interface UserDTO {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+}   
 
-       // if (!authHeader) {  
+const middleware_security = (req: Request, res: Response, next: NextFunction) => {
+      const authHeader = req.headers['authorization'] as string | undefined;              
 
-            //return res.status(401).json({ message: 'Token de autenticación requerido' });
-       // }
+        if (!authHeader) {  
+         return res.status(401).json({ message: 'The Token is required' });
+       }
         
-        //const token = authHeader.split(' ')[1]; // Extraer el token del header
-        //if (!token) {
-         //   return res.status(401).json({ message: 'Token de autenticación inválido' });
-        //}
-
-        // Aquí podrías agregar lógica para verificar el token, por ejemplo, usando JWT
-        // try {
-        //     const decoded = jwt.verify(token, 'tu_secreto');
-        //     req.user = decoded; // Agregar información del usuario al request
-        //     next();
-        // } catch (err) {
-        //     return res.status(401).json({ message: 'Token de autenticación inválido' });
-        // }
-
-        console.log({ TokenRecibido: 'token_ejemplo' });
-        next();
+        const token = authHeader.split(' ')[1]; 
+        if (!token) {
+            return res.status(401).json({ message: 'The Token is invalid' });
+        }
+         try {
+             const decoded = jwt.verify(token, secretKey as string) as UserDTO; 
+             
+            userContext.run(decoded, () => {
+                 next();
+            });
+         } catch (err) {
+            console.log('JWT Error:', err);
+             return res.status(401).json({ message: 'The Token is invalid' });
+         }
     }
   
 
-export default interceptors_token;
-
+export default middleware_security;
 
