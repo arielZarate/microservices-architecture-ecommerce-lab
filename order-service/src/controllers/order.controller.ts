@@ -2,10 +2,9 @@ import { type Request, type Response, type NextFunction } from 'express';
 import { HttpError } from '../middlewares/errorHandler.js';
 import { OrderResponseDTO } from './dto/orderResponse.dto.js';
 import  CreateOrderDTO  from './dto/createOrder.dto.js';
-import { OrderService } from '../services/order/order.service.interface.js';
+import  OrderService  from '../services/order/order.service.interface.js';
 import updateStatusDTO from './dto/updateOrder.dto.js';
-import userContext from '../context/user.context.js';
-
+import OrderMapper from './mappers/order.mapper.js';
 
 export default class OrderController {
 
@@ -25,12 +24,16 @@ export default class OrderController {
 };
 
 // POST /api/orders - Create order
- createOrder = (req: Request, res: Response): void => {
-  const body = req.body as CreateOrderDTO;
-  // TODO: guardar en la base de datos
-  console.log('createOrder called with:', body);
-  res.status(201).json("Orden creada exitosamente");
-};
+  createOrder = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const body = req.body as CreateOrderDTO;
+      const order = OrderMapper.toDomain(body);
+      const createdOrder = await this.orderService.create(order);
+      res.status(201).json({ orderId: createdOrder.getId(), message: "Orden creada exitosamente" });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  };
 
 // PUT /api/orders/:id/status - Update order status
  updateOrder = (req: Request, res: Response): void => {

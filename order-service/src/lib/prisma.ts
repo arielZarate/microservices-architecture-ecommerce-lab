@@ -1,5 +1,5 @@
 
-/*import "dotenv/config";
+import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 
@@ -19,7 +19,7 @@ const prisma = new PrismaClient({ adapter });
 
 export default prisma ;
 
-*/
+
 
 /*
 const testConnection = async () => {

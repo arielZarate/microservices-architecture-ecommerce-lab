@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction} from "express";
 import jwt from 'jsonwebtoken';
 import userContext from "../context/user.context.js";
 
@@ -25,12 +25,11 @@ const middleware_security = (req: Request, res: Response, next: NextFunction) =>
         }
          try {
              const decoded = jwt.verify(token, secretKey as string) as UserDTO; 
-             
-            userContext.run(decoded, () => {
+              userContext.run(decoded, () => {
                  next();
             });
-         } catch (err) {
-            console.log('JWT Error:', err);
+         } catch (err: any) {
+            console.log('JWT Error:', err?.message);
              return res.status(401).json({ message: 'The Token is invalid' });
          }
     }

@@ -1,19 +1,29 @@
 import axios from 'axios';
+import ProductDTO from './dto/product.dto.js';
+import ProductClient from './product.client.interface.js';
 
-// lo que espero de products
-export interface ProductFromService {
-  productId: number;
-  title: string;
-  price: number;
-  description: string;
-  image: string;
-  category: string;
-}
+export default class ProductClientService implements ProductClient {
 
-export const productService = {
-  async getProduct(productId: number): Promise<ProductFromService> {
-    const url = `${process.env.PRODUCT_SERVICE_URL}/products/${productId}`;
-    const response = await axios.get<ProductFromService>(url);
+  private baseURL: string;
+
+  constructor(baseURL: string) {
+    this.baseURL = `${process.env.PRODUCT_SERVICE_URL}`;
+  }
+ 
+    async getProductById(productId: number): Promise<ProductDTO> {
+    const url = `${this.baseURL}/products/${productId}`;
+    const response = await axios.get<ProductDTO>(url);
     return response.data;
   }
-};
+
+
+} 
+
+
+
+
+
+
+
+
+

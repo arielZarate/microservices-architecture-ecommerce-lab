@@ -1,11 +1,14 @@
 import express from 'express';
 import OrderController from '../controllers/order.controller.js';
-import { OrderService } from '../services/order/order.service.interface.js';
+import OrderService from '../services/order/order.service.interface.js';
 import { OrderServiceImpl } from '../services/order/order.service.impl.js';
+import ProductClientService from '../services/product/product.client.service..ts.js';
+import OrderRepositoryImpl from '../persistence/order/order.repository.impl.js';
 import middleware_security from '../middlewares/token.interceptor.js';
-//import interceptors_token from '../middlewares/token.interceptor.js';
 
-const orderService: OrderService = new OrderServiceImpl();
+const productClient = new ProductClientService();
+const orderRepository = new OrderRepositoryImpl();
+const orderService: OrderService = new OrderServiceImpl(productClient, orderRepository);
 const orderController = new OrderController(orderService);
 
 const router = express.Router();

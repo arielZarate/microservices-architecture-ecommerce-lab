@@ -1,7 +1,7 @@
 import  Order  from "../../models/order.model.js";
 import  OrderStatus  from "../../models/enum/orderStatus.js";
 
-export interface OrderService {
+export default interface OrderService {
   create(order: Order): Promise<Order>;
   getAll(): Promise<Order[]>;
   getById(id: string): Promise<Order | null>;

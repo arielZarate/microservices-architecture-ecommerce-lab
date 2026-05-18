@@ -1,14 +1,14 @@
  class OrderItem {
-  private productId: string;
-  private productName: string;
+  private productId:number;
+  private productName?: string | undefined;
   private quantity: number;
-  private unitPrice: number;
+  private unitPrice?: number | undefined;
 
   constructor(
-    productId: string,
-    productName: string,
+    productId: number,
+    productName: string | undefined,
     quantity: number,
-    unitPrice: number
+    unitPrice: number | undefined
   ) {
     this.productId = productId;
     this.productName = productName;
@@ -16,17 +16,14 @@
     this.unitPrice = unitPrice;
   }
 
-  getProductId(): string {
+  getProductId(): number {
     return this.productId;
   }
-  setProductId(value: string): void {
+  setProductId(value: number): void {
     this.productId = value;
   }
 
-  getProductName(): string {
-    return this.productName;
-  }
-  setProductName(value: string): void {
+  setProductName(value: string | undefined): void {
     this.productName = value;
   }
 
@@ -37,10 +34,16 @@
     this.quantity = value;
   }
 
-  getUnitPrice(): number {
-    return this.unitPrice;
+
+  getProductName(): string {
+    return this.productName || '';
   }
-  setUnitPrice(value: number): void {
+
+  getUnitPrice(): number {
+
+    return this.unitPrice || 0;
+  }
+  setUnitPrice(value: number | undefined): void {
     this.unitPrice = value;
   }
 

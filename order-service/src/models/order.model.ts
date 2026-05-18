@@ -2,42 +2,34 @@ import OrderStatus  from "./enum/orderStatus.js";
 import  OrderItem  from "./orderItem.model.js";
 
 export default class Order {
-   private id: string;
+  private id?: string | undefined;
   private customerId: number;
   private customerName: string;
   private customerEmail: string;
+  private totalAmount?: number | undefined;
   private items: OrderItem[];
-  private totalAmount: number;
   private status: OrderStatus;
-  private readonly createdAt: Date;
-  private updatedAt: Date;
-  private deletedAt: Date | null;
-
 
   constructor(
-    id: string,
+    id: string | undefined,
     customerId: number,
     customerName: string,
     customerEmail: string,
     items: OrderItem[],
-    totalAmount: number,
+    totalAmount: number | undefined,
     status: OrderStatus
   ) {
     this.id = id;
     this.customerId = customerId;
     this.customerName = customerName;
     this.customerEmail = customerEmail;
-    this.items = items;
     this.totalAmount = totalAmount;
+    this.items = items;
     this.status = status;
-
-    this.createdAt = new Date();
-    this.updatedAt = new Date();
-    this.deletedAt = null;
   }
 
   getId(): string {
-    return this.id;
+    return this.id || '';
   }
   setId(value: string): void {
     this.id = value;
@@ -64,6 +56,24 @@ export default class Order {
     this.customerEmail = value;
   }
 
+  getTotalAmount(): number {
+    return this.totalAmount || 0;
+  }
+  setTotalAmount(value: number): void {
+    this.totalAmount = value;
+  }
+
+  getStatus(): OrderStatus {
+    return this.status;
+  }
+  setStatus(value: OrderStatus): void {
+    this.status = value;
+  }
+
+  toString(): string {
+    return `Order(id=${this.id}, customerId=${this.customerId}, items=${this.items.length}, totalAmount=${this.totalAmount}, status=${this.status})`;
+  }
+
  //======items[]=========
 
   getItems(): OrderItem[] {
@@ -72,53 +82,5 @@ export default class Order {
   setItems(value: OrderItem[]): void {
     this.items = value;
   }
-
-  //===================
-  getTotalAmount(): number {
-    return this.totalAmount;
-  }
-  setTotalAmount(value: number): void {
-    this.totalAmount = value;
-  }
-
-
-  //status
-  getStatus(): OrderStatus {
-    return this.status;
-  }
-  setStatus(value: OrderStatus): void {
-    this.status = value;
-  }
-
-  public canceled(){
-    this.status=OrderStatus.CANCELLED
-    this.updatedAt= new Date()
-  }
-
-
-//====================
-
-  getCreatedAt(): Date {
-    return this.createdAt;
-  }
-
-  getUpdatedAt(): Date {
-    return this.updatedAt;
-  }
-  setUpdatedAt(value: Date): void {
-    this.updatedAt = value;
-  }
-
-  getDeletedAt(): Date | null {
-    return this.deletedAt;
-  }
-  setDeletedAt(value: Date | null): void {
-    this.deletedAt = value;
-  }
-
-  toString(): string {
-    return `Order(id=${this.id}, customerId=${this.customerId}, customerName=${this.customerName}, items=${this.items.length}, totalAmount=${this.totalAmount}, status=${this.status})`;
-  }
-
 
 }
