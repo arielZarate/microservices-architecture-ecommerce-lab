@@ -5,6 +5,7 @@ import OrderStatus from '../../models/enum/orderStatus.js';
 import userContext from '../../context/user.context.js';
 import ProductClient from '../product/product.client.interface.js';
 import OrderRepository from '../../persistence/order/order.repository.interface.js';
+import ProductDTO from '../product/dto/product.dto.js';
 
 export class OrderServiceImpl implements OrderService {
 
@@ -21,41 +22,61 @@ export class OrderServiceImpl implements OrderService {
     return user;
   }
 
-  async create(order: Order): Promise<Order> {
+  async create(order: Order): Promise<any> {
     // 1. Validate user context
     const user = this.validateUserContext();
 
     // 2. Set customer data from context
-    order.setCustomerId(user.customerId);
-    order.setCustomerName(user.customerName);
-    order.setCustomerEmail(user.customerEmail);
+    order.setCustomerId(user.id);
+    order.setCustomerName(user.name);
+    order.setCustomerEmail(user.email);
+  
+
+   // 4. Fetch each product and enrich items
+    const items = order.getItems();
+
 
     // 3. Validate array items
-    if (order.getItems().length === 0) {
+    if (items.length === 0) {
       throw new Error('Order must have at least one item.');
     }
 
-    // 4. Fetch each product and enrich items
-    for (const item of order.getItems()) {
-      const product = await this.productClient.getProductById(item.getProductId());
+ 
 
-      if (!product) {
-        throw new Error(`Product with ID ${item.getProductId()} not found.`);
-      }
+    const products: ProductDTO[] = await Promise.all(
+      items.map(item => this.productClient.getProductById(item.getProductId())
+    ));  
 
-      item.setProductName(product.title);
-      item.setUnitPrice(product.price);
-    }
+
+     items.forEach((item, index) => {
+        const product= products[index] as ProductDTO;
+       if (!product) {
+        throw new Error(`Product with ID ${products[index]}  not found.`);
+      } 
+
+       item.setProductName(product.title);
+       item.setUnitPrice(product.price);
+
+       console.log('precio unitario',item.getUnitPrice)
+       console.log('cantidad',item.getQuantity() )
+
+       return item;
+     });
+     
 
     // 5. Calculate totalAmount
-    const totalAmount = order.getItems().reduce(
+    const totalAmount = items.reduce(
       (sum, item) => sum + (item.getQuantity() * item.getUnitPrice()),
       0
     );
+
     order.setTotalAmount(totalAmount);
 
     // 6. Save to repository
+
     const savedOrder = await this.orderRepository.create(order);
+
+    console.log('Saved order:', savedOrder);  
 
     return savedOrder;
   }

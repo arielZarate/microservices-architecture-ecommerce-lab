@@ -12,7 +12,7 @@ const token=jwt.sign(
     secret,
     {
      algorithm:'HS512',
-     expiresIn:'infinity'
+     expiresIn:'7d'
     }
 );
 

@@ -8,9 +8,9 @@ export default class OrderMapper {
     const items: OrderItem[] = dto.items.map(
       item => new OrderItem(
         item.productId,
-        undefined,
         item.quantity,
-        undefined
+        undefined,
+        undefined,
       )
     );
 
@@ -20,7 +20,7 @@ export default class OrderMapper {
       '',
       '',
       items,
-      undefined,
+      0,
       OrderStatus.PENDING
     );
 

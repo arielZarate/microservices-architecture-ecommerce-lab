@@ -7,16 +7,18 @@ export default class ProductClientService implements ProductClient {
   private baseURL: string;
 
   constructor(baseURL: string) {
-    this.baseURL = `${process.env.PRODUCT_SERVICE_URL}`;
+    this.baseURL = baseURL;
   }
  
-    async getProductById(productId: number): Promise<ProductDTO> {
+async getProductById(productId: number): Promise<ProductDTO> {
+  try {
     const url = `${this.baseURL}/products/${productId}`;
     const response = await axios.get<ProductDTO>(url);
     return response.data;
+  } catch (err: Error | any) {
+    throw new Error(`Product ${productId} not found`);
   }
-
-
+}
 } 
 
 

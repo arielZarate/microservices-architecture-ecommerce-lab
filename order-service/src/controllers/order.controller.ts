@@ -29,8 +29,8 @@ export default class OrderController {
       const body = req.body as CreateOrderDTO;
       const order = OrderMapper.toDomain(body);
       const createdOrder = await this.orderService.create(order);
-      res.status(201).json({ orderId: createdOrder.getId(), message: "Orden creada exitosamente" });
-    } catch (error) {
+      res.status(201).json(createdOrder);
+    } catch (error : any) {
       res.status(500).json({ error: error.message });
     }
   };

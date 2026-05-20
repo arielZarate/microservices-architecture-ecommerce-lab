@@ -5,6 +5,11 @@ export  default interface ProductDTO {
   title: string;
   price: number;
   description: string;
-  image: string;
-  category: string;
+  categoryId: string;
+  active: boolean;
+  imageUrl: string;
+  rating: {
+    rate: number;
+    count: number;
+  };
 }
