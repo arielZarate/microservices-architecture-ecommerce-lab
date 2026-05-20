@@ -3,8 +3,11 @@ import Order from '../../models/order.model.js';
 import OrderRepository from './order.repository.interface.js';
 import prisma from '../../lib/prisma.js';
 import OrderMapperRepository from '../mappers/order.mapper.js';
+import OrderPrismaResponse from '../dto/order.response.prisma.dto.js';
 
 export default class OrderRepositoryImpl implements OrderRepository {
+
+
   async create(order: Order): Promise<Order> {
     const created = await prisma.order.create({
       data: OrderMapperRepository.toPrismaCreate(order),
@@ -13,7 +16,7 @@ export default class OrderRepositoryImpl implements OrderRepository {
       }
     });
 
-    return OrderMapperRepository.fromPrisma(created as any);
+    return OrderMapperRepository.fromPrisma(created as unknown as OrderPrismaResponse);
   }
 
   getAll(): Promise<Order[]> {

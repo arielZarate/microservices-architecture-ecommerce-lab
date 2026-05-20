@@ -1,12 +1,13 @@
 import Order from '../../models/order.model.js';
 import OrderStatus from '../../models/enum/orderStatus.js';
-import OrderPrisma from '../model/order.prisma.js';
 import ItemMapperRepository from './item.mapper.js';
+import OrderPrismaResponse from '../dto/order.response.prisma.dto.js';
+
 
 const validStatuses = Object.values(OrderStatus);
 
 export default class OrderMapperRepository {
-  static fromPrisma(data: OrderPrisma): Order {
+  static fromPrisma(data: OrderPrismaResponse): Order {
     const orderItems = ItemMapperRepository.fromPrisma(data.items);
 
     const status = validStatuses.includes(data.status as OrderStatus)
@@ -31,7 +32,6 @@ export default class OrderMapperRepository {
       customerEmail: order.getCustomerEmail(),
       totalAmount: order.getTotalAmount(),
       status: order.getStatus(),
-      // the create required
       items: {
         create: ItemMapperRepository.toPrisma(order.getItems())
       }
