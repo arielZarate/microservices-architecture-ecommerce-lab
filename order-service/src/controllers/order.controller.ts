@@ -5,6 +5,7 @@ import  CreateOrderDTO  from './dto/createOrder.dto.js';
 import  OrderService  from '../services/order/order.service.interface.js';
 import updateStatusDTO from './dto/updateOrder.dto.js';
 import OrderMapper from './mappers/order.mapper.js';
+import logger from '../config/logger.js';
 
 export default class OrderController {
 
@@ -26,11 +27,17 @@ export default class OrderController {
 // POST /api/orders - Create order
   createOrder = async (req: Request, res: Response): Promise<void> => {
     try {
+      logger.info("Request POST create orders")
       const body = req.body as CreateOrderDTO;
       const order = OrderMapper.toDomain(body);
       const createdOrder = await this.orderService.create(order);
-      res.status(201).json(createdOrder);
+      logger.info(`Order created successfully: ${createdOrder.getId()}`);
+    res.status(201).json({
+      id: createdOrder.getId()
+    });
+
     } catch (error : any) {
+      logger.error(`Error creating order: ${error.message}`);
       res.status(500).json({ error: error.message });
     }
   };

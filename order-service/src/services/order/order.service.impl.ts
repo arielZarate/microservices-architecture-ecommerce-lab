@@ -53,13 +53,8 @@ export class OrderServiceImpl implements OrderService {
        if (!product) {
         throw new Error(`Product with ID ${products[index]}  not found.`);
       } 
-
        item.setProductName(product.title);
        item.setUnitPrice(product.price);
-
-       console.log('precio unitario',item.getUnitPrice)
-       console.log('cantidad',item.getQuantity() )
-
        return item;
      });
      
@@ -75,9 +70,6 @@ export class OrderServiceImpl implements OrderService {
     // 6. Save to repository
 
     const savedOrder = await this.orderRepository.create(order);
-
-    console.log('Saved order:', savedOrder);  
-
     return savedOrder;
   }
 
