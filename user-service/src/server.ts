@@ -1,7 +1,21 @@
+import 'dotenv/config';
 import app from './app.js';
+import prisma from './lib/prisma.js';
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`App user-service running on port ${PORT}`);
-});
+const start = async () => {
+  try {
+    await prisma.$connect();
+    console.log('Database connected');
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`User service running on port ${PORT}`);
+  });
+};
+
+start();
