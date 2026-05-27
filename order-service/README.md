@@ -65,43 +65,53 @@ order-service/
 ├── src/
 │   ├── app.ts                    # Configuración Express
 │   ├── server.ts                 # Entry point
+│   ├── config/
+│   │   ├── logger.ts             # Winston logger
+│   │   └── swagger.ts            # Configuración Swagger OpenAPI
 │   ├── lib/
 │   │   └── prisma.ts            # Prisma client singleton
+│   ├── context/
+│   │   └── user.context.ts       # AsyncLocalStorage para JWT
 │   ├── routes/
 │   │   ├── index.route.ts        # Agrupador de rutas
-│   │   ├── order.route.ts       # Rutas de orders
+│   │   ├── order.route.ts       # Rutas de orders (con docs Swagger)
 │   │   ├── api.route.ts         # Ruta raíz del microservicio
 │   │   └── health.route.ts      # Health check
 │   ├── controllers/
 │   │   ├── dto/
 │   │   │   ├── createOrder.dto.ts
 │   │   │   ├── orderResponse.dto.ts
-│   │   │   └── updateOrder.dto.ts
-│   │   ├── mapper/              # (vacío)
+│   │   │   └── status.order.dto.ts
+│   │   ├── mappers/
+│   │   │   └── order.mapper.ts  # DTO ↔ Domain
 │   │   └── order.controller.ts  # Clase controladora
 │   ├── services/
 │   │   ├── order/
 │   │   │   ├── order.service.interface.ts   # Interfaz
 │   │   │   └── order.service.impl.ts       # Implementación
-│   │   ├── product/
-│   │   │   └── product.client.service.ts   # Cliente HTTP para product-service
-│   │   └── mappers/             # (vacío)
+│   │   └── product/
+│   │       ├── dto/product.dto.ts          # DTO de product-service
+│   │       ├── product.client.interface.ts
+│   │       └── product.client.service.ts   # Axios HTTP
 │   ├── persistence/
 │   │   ├── order/
 │   │   │   ├── order.repository.interface.ts
 │   │   │   └── order.repository.impl.ts
-│   │   └── mappers/
-│   │       └── order.mapper.ts
+│   │   ├── dto/order.response.prisma.dto.ts
+│   │   ├── mappers/
+│   │   │   ├── order.mapper.ts
+│   │   │   └── item.mapper.ts
+│   │   └── model/
+│   │       ├── order.prisma.ts
+│   │       └── item.prisma.ts
 │   ├── models/
 │   │   ├── order.model.ts       # Clase Order
 │   │   ├── orderItem.model.ts   # Clase OrderItem
 │   │   └── enum/
 │   │       └── orderStatus.ts   # Enum de estados
-│   ├── context/
-│   │   └── user.context.ts        # AsyncLocalStorage para contexto global de usuario
 │   ├── middlewares/
-│   │   ├── token.interceptor.ts   # Middleware JWT con AsyncLocalStorage
-│   │   └── errorHandler.ts
+│   │   ├── token.interceptor.ts # Middleware JWT con AsyncLocalStorage
+│   │   └── errorHandler.ts     # HttpError + errorHandler global
 ├── .env
 ├── tsconfig.json
 ├── package.json
