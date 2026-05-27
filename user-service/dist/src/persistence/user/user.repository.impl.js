@@ -38,5 +38,11 @@ export default class UserRepositoryImpl {
             return null;
         return UserMapperRepository.fromPrisma(found);
     }
+    async updatePassword(email, hashedPassword) {
+        await prisma.user.update({
+            where: { email },
+            data: { password: hashedPassword },
+        });
+    }
 }
 //# sourceMappingURL=user.repository.impl.js.map

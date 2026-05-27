@@ -4,11 +4,12 @@ Microservicio de autenticación y gestión de usuarios para el e-commerce.
 
 ## Descripción
 
-Este servicio gestiona el registro y login de usuarios:
+Este servicio gestiona registro, login y reseteo de contraseña de usuarios:
 - Registro de usuarios con hash de contraseña (bcrypt)
-- Login con generación de JWT (HS512, 7 días de expiración)
+- Login con generación de JWT
+- Reseteo de contraseña por email
 - Persistencia en PostgreSQL con Prisma ORM
-- Generación de tokens JWT compatibles con el resto de microservicios del ecosistema
+- Validaciones de email, DNI, CUIT, contraseña
 
 ## Tech Stack
 
@@ -16,9 +17,7 @@ Este servicio gestiona el registro y login de usuarios:
 - **Prisma** ORM (acceso a datos)
 - **PostgreSQL** (base de datos)
 - **bcryptjs** (hashing de contraseñas)
-- **jsonwebtoken** (generación y validación de JWT)
-- **Winston** (logging)
-- **Swagger** (documentación OpenAPI)
+- **jsonwebtoken** (generación de JWT)
 
 ## Arquitectura
 
@@ -30,114 +29,98 @@ Controller (DTO) → Service (interfaz/impl) → Repository → Prisma → DB
                 Domain/Entity (User)
 ```
 
-### Estructura de Capas
-
-```
-Routes → Controller (clase, recibe interfaz por constructor)
-              ↓
-        Service Interface (UserService)
-              ↓
-        Service Impl (UserServiceImpl)
-              ↓
-        Repository Interface (UserRepository)
-              ↓
-        Repository Impl (UserRepositoryImpl)
-              ↓
-        Prisma → PostgreSQL
-```
-
 ### Inyección de Dependencias
 
 ```typescript
-// auth.route.ts
-const userRepository: UserRepository = new UserRepositoryImpl();
-const userService: UserService = new UserServiceImpl(userRepository);
-const authController = new AuthController(userService);
+const userRepository = new UserRepositoryImpl();
+const registerService = new RegisterServiceImpl(userRepository);
+const loginService = new LoginServiceImpl(userRepository);
+const authController = new AuthController(registerService, loginService);
 ```
 
-- **Controller** recibe `UserService` (interfaz)
-- **Router** crea `UserServiceImpl` y `UserRepositoryImpl` y las pasa
-- Tipado con interfaz para mantener el desacoplamiento
+- **Controller** recibe las interfaces de servicio por constructor
+- **Router** crea las implementaciones concretas y las pasa
+- Tipado con interfaces para mantener el desacoplamiento
 
 ## Estructura del proyecto
 
 ```
 user-service/
 ├── prisma/
-│   └── schema.prisma             # Modelo User
-├── generated/                    # Prisma client
+│   ├── schema.prisma                # Modelo User
+│   └── migrations/                  # Migraciones SQL
+├── generated/                       # Prisma client (auto-generado)
 ├── src/
-│   ├── app.ts                    # Configuración Express
-│   ├── server.ts                 # Entry point
-│   ├── config/
-│   │   ├── logger.ts             # Winston logger
-│   │   └── swagger.ts            # Configuración Swagger OpenAPI
+│   ├── app.ts                       # Configuración Express
+│   ├── server.ts                    # Entry point
 │   ├── lib/
-│   │   └── prisma.ts            # Prisma client singleton
+│   │   ├── prisma.ts               # Prisma client singleton
+│   │   └── jwt.ts                   # generateToken + TokenPayload
 │   ├── models/
-│   │   ├── user.model.ts        # Clase User
+│   │   ├── user.model.ts           # Clase User (dominio)
 │   │   └── enum/
-│   │       └── userRole.ts      # Enum de roles
+│   │       └── userRole.ts         # Enum USER | ADMIN
 │   ├── services/
-│   │   ├── user.service.interface.ts  # Interfaz
-│   │   └── user.service.impl.ts       # Implementación
+│   │   ├── register/
+│   │   │   ├── register.service.interface.ts
+│   │   │   └── register.service.impl.ts
+│   │   ├── login/
+│   │   │   ├── login.service.interface.ts
+│   │   │   └── login.service.impl.ts
+│   │   └── reset-password/
+│   │       ├── reset.password.service.interface.ts
+│   │       └── reset.password.service.impl.ts
 │   ├── controllers/
-│   │   ├── auth.controller.ts   # Clase controladora
-│   │   ├── dto/
-│   │   │   ├── register.dto.ts
-│   │   │   ├── login.dto.ts
-│   │   │   └── auth.response.dto.ts
-│   │   └── mappers/
-│   │       └── auth.mapper.ts   # DTO ↔ Domain
+│   │   ├── auth.controller.ts      # register + login + resetPassword
+│   │   └── dto/
+│   │       ├── register.dto.ts
+│   │       ├── register.response.dto.ts
+│   │       ├── login.dto.ts
+│   │       ├── auth.response.dto.ts
+│   │       └── reset.password.dto.ts
 │   ├── persistence/
 │   │   ├── user.repository.interface.ts
 │   │   ├── user.repository.impl.ts
 │   │   ├── model/
-│   │   │   └── user.prisma.ts   # Type Prisma
+│   │   │   └── user.prisma.ts
 │   │   ├── dto/
 │   │   │   └── user.prisma.dto.ts
 │   │   └── mappers/
-│   │       └── user.mapper.ts   # Prisma ↔ Domain
+│   │       └── user.mapper.ts
 │   ├── routes/
-│   │   ├── index.route.ts       # Agrupador de rutas
-│   │   ├── auth.route.ts        # Rutas de auth
-│   │   ├── api.route.ts         # Ruta raíz del microservicio
-│   │   └── health.route.ts      # Health check
+│   │   ├── index.route.ts          # Agrupador de rutas
+│   │   ├── login.route.ts
+│   │   ├── register.route.ts
+│   │   ├── reset.password.route.ts
+│   │   ├── api.route.ts
+│   │   └── health.route.ts
 │   └── middlewares/
-│       └── errorHandler.ts      # HttpError + errorHandler global
+│       └── errorHandler.ts         # HttpError + errorHandler global
 ├── .env
 ├── tsconfig.json
 ├── package.json
 └── README.md
 ```
 
-## Modelo (Clase)
-
-### User
+## Modelo de Dominio (User)
 
 ```typescript
 class User {
   private id?: number;
   private name: string;
+  private lastName: string;
+  private dni: string;
+  private cuit?: string;
+  private address?: string;
+  private neighborhood?: string;
+  private city?: string;
+  private postalCode?: string;
+  private country?: string;
   private email: string;
   private password: string;
+  private phone?: string;
+  private active: boolean;
   private role: UserRole;
-
-  constructor(id, name, email, password, role);
-  
-  // Getters y Setters para cada campo
-  getId(): number;
-  setId(value: number): void;
-  getName(): string;
-  setName(value: string): void;
-  getEmail(): string;
-  setEmail(value: string): void;
-  getPassword(): string;
-  setPassword(value: string): void;
-  getRole(): UserRole;
-  setRole(value: UserRole): void;
-  
-  toString(): string;
 }
 ```
 
@@ -150,15 +133,6 @@ enum UserRole {
 }
 ```
 
-## Interfaz del Service
-
-```typescript
-interface UserService {
-  register(name: string, email: string, password: string): Promise<AuthResponse>;
-  login(email: string, password: string): Promise<AuthResponse>;
-}
-```
-
 ## DTOs
 
 ### RegisterDTO
@@ -166,8 +140,18 @@ interface UserService {
 ```typescript
 interface RegisterDTO {
   name: string;
+  lastName: string;
+  dni: string;
   email: string;
   password: string;
+  role?: string;
+  cuit?: string;
+  address?: string;
+  neighborhood?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+  phone?: string;
 }
 ```
 
@@ -180,6 +164,15 @@ interface LoginDTO {
 }
 ```
 
+### ResetPasswordDTO
+
+```typescript
+interface ResetPasswordDTO {
+  email: string;
+  newPassword: string;
+}
+```
+
 ### AuthResponseDTO
 
 ```typescript
@@ -188,75 +181,92 @@ interface AuthResponseDTO {
   user: {
     id: number;
     name: string;
+    lastName: string;
     email: string;
     role: string;
   };
 }
 ```
 
-## Flujo de autenticación
+## Flujos de autenticación
 
 ### Registro
 
 ```
-POST /api/auth/register { name, email, password }
-               ↓
+POST /api/auth/register { name, lastName, dni, email, password, ... }
+                ↓
         Validar campos requeridos
-               ↓
-        Verificar email no existente
-               ↓
+        Validar formato de email
+        Validar password (≥ 6 caracteres)
+        Validar DNI (7 u 8 dígitos)
+        Validar CUIT si se envía (XX-XXXXXXXX-X)
+                ↓
+        Verificar email no existente en DB
+                ↓
         bcrypt.hash(password, saltRounds)
-               ↓
-        Crear User en DB (role: USER por defecto)
-               ↓
-        jwt.sign({ id, name, email, role }, JWT_SECRET, { algorithm: 'HS512', expiresIn: '7d' })
-               ↓
-        { token, user: { id, name, email, role } }
+                ↓
+        Crear User en DB (role: USER, active: true)
+                ↓
+        { id, name, lastName, email, role }
 ```
 
 ### Login
 
 ```
 POST /api/auth/login { email, password }
-               ↓
+                ↓
         Buscar user por email en DB
-               ↓
+                ↓
         Si no existe → 401
-               ↓
+                ↓
         bcrypt.compare(password, user.password)
-               ↓
+                ↓
         Si no coincide → 401
-               ↓
-        jwt.sign({ id, name, email, role }, JWT_SECRET, { algorithm: 'HS512', expiresIn: '7d' })
-               ↓
-        { token, user: { id, name, email, role } }
+                ↓
+        jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn: '24h' })
+                ↓
+        { token, user: { id, name, lastName, email, role } }
+```
+
+### Reset Password
+
+```
+POST /api/auth/reset-password { email, newPassword }
+                ↓
+        Buscar user por email en DB
+                ↓
+        Si no existe → 404
+                ↓
+        Validar password (≥ 6 caracteres)
+                ↓
+        bcrypt.hash(newPassword, saltRounds)
+                ↓
+        Actualizar password en DB
+                ↓
+        { message: "Password reset successfully" }
 ```
 
 ## JWT
 
-### Formato del payload
+### Payload (TokenPayload)
 
-```json
-{
-  "id": 1,
-  "name": "Ariel Zarate",
-  "email": "ariel@test.com",
-  "role": "admin"
-}
+```typescript
+type TokenPayload = {
+  id: number;
+  email: string;
+  role: string;
+};
 ```
 
 ### Configuración
 
-- **Algoritmo**: HS512
-- **Expiración**: 7 días
-- **Secret**: `JWT_SECRET` en `.env` (compartido con order-service y otros micros)
+- **Algoritmo**: HS256 (default de jsonwebtoken)
+- **Expiración**: 24 horas
+- **Secret**: `JWT_SECRET` en `.env`
 
 ### Compatibilidad
 
-El token generado por user-service es consumido por:
-- **order-service**: middleware `token.interceptor.ts` valida el token con `jwt.verify`
-- **product-service** (futuro): validación del mismo JWT
-- **shipping-service** (futuro): validación del mismo JWT
+El token generado por user-service puede ser consumido por otros servicios (order-service, product-service, etc.) usando `jwt.verify(token, JWT_SECRET)`.
 
 ## Endpoints
 
@@ -266,33 +276,43 @@ El token generado por user-service es consumido por:
 | GET | `/api/msv` | ❌ | Mensaje raíz del microservicio |
 | POST | `/api/auth/register` | ❌ | Registrar nuevo usuario |
 | POST | `/api/auth/login` | ❌ | Iniciar sesión |
+| POST | `/api/auth/reset-password` | ❌ | Resetear contraseña |
+
+## validaciones (Registro)
+
+| Campo | Regla |
+|-------|-------|
+| `name` | Obligatorio, mínimo 2 caracteres |
+| `lastName` | Obligatorio, mínimo 2 caracteres |
+| `dni` | Obligatorio, 7 u 8 dígitos |
+| `email` | Obligatorio, formato `user@domain.com` |
+| `password` | Obligatorio, mínimo 6 caracteres |
+| `cuit` | Opcional, formato `XX-XXXXXXXX-X` |
 
 ## Schema Prisma
 
 ```prisma
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("USER")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
+  id           Int      @id @default(autoincrement())
+  name         String
+  lastName     String
+  dni          String
+  cuit         String?
+  address      String?
+  neighborhood String?
+  city         String?
+  postalCode   String?
+  country      String?
+  email        String   @unique
+  password     String
+  phone        String?
+  role         String   @default("USER")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
 }
 ```
-
-## Documentación API (Swagger)
-
-La documentación interactiva de la API estará disponible en:
-
-```
-http://localhost:3000/api/docs
-```
-
-Incluirá:
-- Endpoints de registro y login con sus parámetros y schemas
-- Prueba interactiva de cada operación
 
 ## Scripts
 
@@ -305,7 +325,7 @@ Incluirá:
 ## Variables de Entorno (.env)
 
 ```
-PORT=3000
+PORT=4000
 DATABASE_URL="postgresql://postgres:1111@localhost:5432/users_management"
 DB_HOST="localhost"
 DB_PORT="5432"
