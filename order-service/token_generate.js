@@ -3,16 +3,16 @@ import jwt from 'jsonwebtoken';
 const secret= 'sapee2026';
 const token=jwt.sign(
     {
-        id:1,
-        name:'Ariel Zarate',
-        email:'ariel@test.com',
-        role:"admin"
+        id:2,
+        name:'Tupac Zarate',
+        email:'tupac@test.com',
+        role:"user"
     }
     ,
     secret,
     {
      algorithm:'HS512',
-     expiresIn:'24h'
+     expiresIn:'7d'
     }
 );
 

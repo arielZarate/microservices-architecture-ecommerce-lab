@@ -1,7 +1,7 @@
+import OrderStatusDTO from "./status.order.dto.js";
 
 // DTO para crear una orden
  interface CreateOrderDTO {
-  totalAmount: number;
   status?: string; // Pendiente por defecto
   items:   Array<{
     productId: number;
