@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction} from "express";
 import jwt from 'jsonwebtoken';
 import userContext from "../context/user.context.js";
+import tokenContext from "../context/token.context.js";
 
 const  secretKey = process.env.JWT_SECRET
 
@@ -26,7 +27,9 @@ const middleware_security = (req: Request, res: Response, next: NextFunction) =>
          try {
              const decoded = jwt.verify(token, secretKey as string) as UserDTO; 
               userContext.run(decoded, () => {
+                tokenContext.run(token, () => {
                  next();
+                });
             });
          } catch (err: any) {
             console.log('JWT Error:', err?.message);
