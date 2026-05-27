@@ -1,4 +1,4 @@
-package com.arielzarate.shipping.interfaces.error.model
+package com.arielzarate.shipment.interfaces.error.model
 
 class ShipmentError(
     val status: Int,

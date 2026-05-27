@@ -6,11 +6,11 @@ server:
 
 spring:
   application:
-    name: shipping
+    name: shipment-service
 
   #database
   datasource:
-    url: jdbc:postgresql://localhost:5432/shipping_management
+    url: jdbc:postgresql://localhost:5432/shipment_management
     username: postgres
     password: 1111
     driver-class-name: org.postgresql.Driver

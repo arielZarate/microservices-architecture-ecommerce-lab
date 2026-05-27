@@ -1,4 +1,4 @@
-package com.arielzarate.shipping.domain.model
+package com.arielzarate.shipment.domain.model
 
 data class Shipment(
     val id: Long,

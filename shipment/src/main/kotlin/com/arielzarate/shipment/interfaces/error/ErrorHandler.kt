@@ -1,9 +1,9 @@
-package com.arielzarate.shipping.interfaces.error
+package com.arielzarate.shipment.interfaces.error
 
-import com.arielzarate.shipping.interfaces.error.exception.ShipmentErrorException
-import com.arielzarate.shipping.interfaces.error.exception.ExternalClientException
-import com.arielzarate.shipping.interfaces.error.model.ShipmentError
-import com.arielzarate.shipping.interfaces.error.model.ClientError
+import com.arielzarate.shipment.interfaces.error.exception.ShipmentErrorException
+import com.arielzarate.shipment.interfaces.error.exception.ExternalClientException
+import com.arielzarate.shipment.interfaces.error.model.ShipmentError
+import com.arielzarate.shipment.interfaces.error.model.ClientError
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity

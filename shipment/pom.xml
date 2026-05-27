@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.arielzarate</groupId>
-	<artifactId>shipping</artifactId>
+	<artifactId>shipment-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>shipment-service</name>
+	<description>Microservicio de envios del e-commerce lab</description>
 	<url/>
 	<licenses>
 		<license/>

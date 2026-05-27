@@ -1,4 +1,4 @@
-package com.arielzarate.shipping.interfaces.error.model
+package com.arielzarate.shipment.interfaces.error.model
 
 // RFC 7807 standard: type, title, status, detail, instance
 data class ClientError(
