@@ -326,6 +326,19 @@ El token contiene:
 | `npm run build` | Compilar TypeScript |
 | `npm run start` | Iniciar producción (node dist/server.js) |
 
+## Documentación API (Swagger)
+
+La documentación interactiva de la API está disponible en:
+
+```
+http://localhost:3000/api/docs
+```
+
+Incluye:
+- Todos los endpoints con sus parámetros y schemas
+- Autenticación JWT mediante el botón **Authorize**
+- Prueba interactiva de cada operación
+
 ## Estado actual del desarrollo
 
 - ✅ Setup básico (Express, TypeScript, dotenv)
@@ -338,6 +351,7 @@ El token contiene:
 - ✅ Service implementation con persistencia real
 - ✅ Cliente HTTP para product-service (Axios)
 - ✅ JWT middleware con AsyncLocalStorage
+- ✅ Documentación Swagger UI en `/api/docs`
 
 ---
 
