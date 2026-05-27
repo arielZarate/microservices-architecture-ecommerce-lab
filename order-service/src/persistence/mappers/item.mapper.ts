@@ -19,8 +19,7 @@ export default class ItemMapperRepository {
           item.quantity,
           item.productName || undefined,
           Number(item.unitPrice),
-          item.id,
-          item.orderId
+          item.id
         )
     );
   }

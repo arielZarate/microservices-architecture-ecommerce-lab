@@ -184,17 +184,38 @@ enum OrderStatus {
 }
 ```
 
+### Transiciones válidas
+
+```
+PENDING ──► PAID ──► PREPARING ──► SHIPPED
+   │          │           │
+   └──► CANCELLED ◄────────┘
+```
+
+| Desde       | Hacia       | Descripción                     |
+|-------------|-------------|----------------------------------|
+| `PENDING`   | `PAID`      | Pago confirmado                  |
+| `PENDING`   | `CANCELLED` | Orden cancelada por el usuario   |
+| `PAID`      | `PREPARING` | Preparación del pedido iniciada  |
+| `PAID`      | `CANCELLED` | Cancelación post-pago (reembolso)|
+| `PREPARING` | `SHIPPED`   | Pedido enviado                   |
+| `PREPARING` | `CANCELLED` | Cancelación durante preparación  |
+| `SHIPPED`   | —           | Estado terminal, no cambia       |
+| `CANCELLED` | —           | Estado terminal, no cambia       |
+
 ## Endpoints
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/msv` | Mensaje raíz del microservicio |
-| GET | `/api/order` | Listar todas las órdenes |
-| GET | `/api/order/:id` | Obtener orden por ID |
-| POST | `/api/order` | Crear nueva orden |
-| PUT | `/api/order/:id` | Actualizar orden |
-| DELETE | `/api/order/:id` | Eliminar orden (soft delete) |
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| GET | `/api/health` | ❌ | Health check |
+| GET | `/api/msv` | ❌ | Mensaje raíz del microservicio |
+| GET | `/api/order` | ❌ | Listar todas las órdenes (`?status=PENDING`) |
+| GET | `/api/order/my` | ✅ JWT | Órdenes del usuario autenticado |
+| GET | `/api/order/:id` | ✅ JWT | Obtener orden por ID |
+| POST | `/api/order` | ✅ JWT | Crear nueva orden |
+| PUT | `/api/order/:id/status` | ❌ | Actualizar estado (uso interno entre microservicios) |
+
+> **Nota:** `GET /api/order` acepta query param opcional `?status=PENDING|PAID|PREPARING|SHIPPED|CANCELLED` para filtrar.
 
 ## Flujo de datos para creación orden
 

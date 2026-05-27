@@ -6,23 +6,20 @@ import userContext from '../../context/user.context.js';
 import ProductClient from '../product/product.client.interface.js';
 import OrderRepository from '../../persistence/order/order.repository.interface.js';
 import ProductDTO from '../product/dto/product.dto.js';
+import { HttpError } from '../../middlewares/errorHandler.js';
 
-export class OrderServiceImpl implements OrderService {
+
+class OrderServiceImpl implements OrderService {
 
   constructor(
     private productClient: ProductClient,
     private orderRepository: OrderRepository
   ) {}
 
-  private validateUserContext() {
-    const user = userContext.getStore();
-    if (!user) {
-      throw new Error('User context is missing');
-    }
-    return user;
-  }
 
-  async create(order: Order): Promise<any> {
+
+  //===============create order==============================
+  async create(order: Order): Promise<Order> {
     // 1. Validate user context
     const user = this.validateUserContext();
 
@@ -68,28 +65,86 @@ export class OrderServiceImpl implements OrderService {
     order.setTotalAmount(totalAmount);
 
     // 6. Save to repository
-
-    const savedOrder = await this.orderRepository.create(order);
-    return savedOrder;
+    return await this.orderRepository.create(order);
+   
   }
 
-  async getAll(): Promise<Order[]> {
-    throw new Error('Method not implemented.');
+
+
+
+  //====================get all=========================
+  async getAll(status?: string): Promise<Order[]> {
+    const orders=await this.orderRepository.getAll(status);
+    return orders;
   }
 
-  async getById(id: string): Promise<Order | null> {
-    throw new Error('Method not implemented.');
+
+
+
+  //====================get by customer=====================
+  async getByCustomerId(): Promise<Order[]> {
+    const user = this.validateUserContext();
+    return this.orderRepository.getByCustomerId(user.id);
   }
 
-  async getByCustomerId(customerId: number): Promise<Order[]> {
-    throw new Error('Method not implemented.');
+
+
+
+  //================get by order=============================
+  async getById(id: string): Promise<Order> {
+    const order = await this.orderRepository.getById(id);
+    if (!order) {
+      throw new HttpError(`Order ${id} not found`, 404);
+    }
+    return order; 
+
   }
 
-  async updateStatus(id: string, status: OrderStatus): Promise<Order> {
-    throw new Error('Method not implemented.');
+ 
+  //====================update status=========================
+  async updateStatus(id: string, newStatus: OrderStatus): Promise<Order> {
+    const order = await this.orderRepository.getById(id);
+    if (!order) {
+      throw new HttpError(`Order ${id} not found`, 404);
+    }
+
+    const currentStatus = order.getStatus();
+    if (!this.isValidTransition(currentStatus, newStatus)) {
+      throw new HttpError(
+        `Invalid transition from ${currentStatus} to ${newStatus}`,
+        400
+      );
+    }
+
+    return this.orderRepository.updateStatus(id, newStatus);
   }
 
-  async delete(id: string): Promise<void> {
-    throw new Error('Method not implemented.');
+
+
+
+
+  //=========PRIVATE METHODS====================
+
+  private validateUserContext() {
+    const user = userContext.getStore();
+    if (!user) {
+      throw new Error('User context is missing');
+    }
+    return user;
   }
+
+  private isValidTransition(current: OrderStatus, next: OrderStatus): boolean {
+    const transitions: Record<OrderStatus, OrderStatus[]> = {
+      [OrderStatus.PENDING]: [OrderStatus.PAID, OrderStatus.CANCELLED],
+      [OrderStatus.PAID]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+      [OrderStatus.PREPARING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+      [OrderStatus.SHIPPED]: [],
+      [OrderStatus.CANCELLED]: [],
+    };
+    return transitions[current]?.includes(next) ?? false;
+  }
+
 }
+
+
+export default OrderServiceImpl

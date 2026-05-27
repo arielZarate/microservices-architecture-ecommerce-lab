@@ -19,19 +19,41 @@ export default class OrderRepositoryImpl implements OrderRepository {
     return OrderMapperRepository.fromPrisma(created as unknown as OrderPrismaResponse);
   }
 
-  getAll(): Promise<Order[]> {
-    throw new Error('Method not implemented.');
+  async getAll(status?: string): Promise<Order[]> {
+    const orders = await prisma.order.findMany({
+      ...(status ? { where: { status } } : {}),
+      include: { items: true }
+    });
+    return orders.map(o => OrderMapperRepository.fromPrisma(o as unknown as OrderPrismaResponse));
   }
 
-  getById(id: string): Promise<Order | null> {
-    throw new Error('Method not implemented.');
+  async getByCustomerId(customerId: number, status?: string): Promise<Order[]> {
+    const orders = await prisma.order.findMany({
+      where: {
+        customerId,
+        ...(status ? { status } : {})
+      },
+      include: { items: true }
+    });
+    return orders.map(o => OrderMapperRepository.fromPrisma(o as unknown as OrderPrismaResponse));
   }
 
-  updateStatus(id: string, status: OrderStatus): Promise<Order> {
-    throw new Error('Method not implemented.');
+  async getById(id: string): Promise<Order | null> {
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true }
+    });
+    if (!order) return null;
+    return OrderMapperRepository.fromPrisma(order as unknown as OrderPrismaResponse);
   }
 
-  delete(id: string): Promise<void> {
-    throw new Error('Method not implemented.');
+  async updateStatus(id: string, status: OrderStatus): Promise<Order> {
+    const updated = await prisma.order.update({
+      where: { id },
+      data: { status },
+      include: { items: true }
+    });
+    return OrderMapperRepository.fromPrisma(updated as unknown as OrderPrismaResponse);
   }
+
 }

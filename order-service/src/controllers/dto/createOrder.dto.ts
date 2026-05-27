@@ -1,3 +1,4 @@
+import OrderStatusDTO from "./status.order.dto.js";
 
 // DTO para crear una orden
  interface CreateOrderDTO {

@@ -1,25 +1,25 @@
  class OrderItem {
   private id?: string;
-  private orderId?: string;
   private productId: number;
   private productName?: string | undefined;
   private quantity: number;
   private unitPrice?: number | undefined;
 
   constructor(
+
     productId: number,
     quantity: number,
     productName?: string,
     unitPrice?: number,
     id?: string,
-    orderId?: string
+  
   ) {
     this.productId = productId;
     this.quantity = quantity;
     this.productName = productName;
     this.unitPrice = unitPrice;
     if (id !== undefined) this.id = id;
-    if (orderId !== undefined) this.orderId = orderId;
+   
   }
 
   getId(): string | undefined {
@@ -27,13 +27,6 @@
   }
   setId(value: string): void {
     this.id = value;
-  }
-
-  getOrderId(): string | undefined {
-    return this.orderId;
-  }
-  setOrderId(value: string): void {
-    this.orderId = value;
   }
 
   getProductId(): number {

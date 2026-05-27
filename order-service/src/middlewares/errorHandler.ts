@@ -1,7 +1,7 @@
 import { type Request, type Response, type NextFunction } from 'express';
 
 // Clase para lanzar errores con código HTTP
-export class HttpError extends Error {
+ export class HttpError extends Error {
   statusCode: number;
 
   constructor(message: string, statusCode: number = 500) {
