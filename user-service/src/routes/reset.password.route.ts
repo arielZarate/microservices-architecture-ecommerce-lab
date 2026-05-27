@@ -16,6 +16,6 @@ const authController = new AuthController(registerService, loginService, resetPa
 
 const router = Router();
 
-router.post('/register', authController.register.bind(authController));
+router.post('/reset-password', authController.resetPassword.bind(authController));
 
 export default router;

@@ -46,4 +46,11 @@ export default class UserRepositoryImpl implements UserRepository {
     if (!found) return null;
     return UserMapperRepository.fromPrisma(found as unknown as UserPrismaResponse);
   }
+
+  async updatePassword(email: string, hashedPassword: string): Promise<void> {
+    await prisma.user.update({
+      where: { email },
+      data: { password: hashedPassword },
+    });
+  }
 }
