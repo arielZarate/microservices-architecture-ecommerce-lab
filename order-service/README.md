@@ -8,51 +8,260 @@ Este servicio gestiona el ciclo de vida completo de las órdenes de compra:
 - Creación de órdenes con validación de productos
 - Listado y consulta de órdenes
 - Actualización de estado (PENDING → PAID → PREPARING → SHIPPED → CANCELLED)
-- Soft delete de órdenes
+- **Publicación de eventos Kafka cuando una orden se marca como PAID**
 - Integración con product-service para validación de productos y precios
 - Persistencia en PostgreSQL con Prisma ORM
 - Autenticación JWT
 
+---
+
 ## Arquitectura
 
-### Clean Architecture
-
-```
-Controller (DTO) → Service (clase) → Repository → Prisma → DB
-                    ↓
-              Domain/Entity (Order)
-```
-
-### Estructura de Capas
+### Capas
 
 ```
 Routes → Controller (clase, usa interfaz)
               ↓
         Service Interface (OrderService)
               ↓
-        Service Impl (OrderServiceImpl)
+        Service Impl (OrderServiceImpl)  ──► KafkaProducer (eventos)
               ↓
-        Prisma → PostgreSQL
+       OrderRepository (interfaz)
+              ↓
+       OrderRepositoryImpl (Prisma)
+              ↓
+            PostgreSQL
 ```
 
 ### Inyección de Dependencias
 
+Todas las dependencias se crean en `order.route.ts` y se inyectan manualmente:
+
 ```typescript
-// order.route.ts
-const orderService: OrderService = new OrderServiceImpl();
+const productClient = new ProductClientService(url);
+const orderRepository = new OrderRepositoryImpl();
+const kafkaProducer = new KafkaProducer(process.env.KAFKA_BROKER);
+const orderService: OrderService = new OrderServiceImpl(
+  productClient, orderRepository, kafkaProducer
+);
 const orderController = new OrderController(orderService);
 ```
 
-- **Controller** recibe `OrderService` (interfaz)
-- **Router** crea `OrderServiceImpl` (implementación) y la pasa
-- Tipado con interfaz: `const orderService: OrderService = new OrderServiceImpl()`
+---
 
 ## Tech Stack
 
 - **Node.js** + **Express** + **TypeScript**
 - **Prisma** ORM (acceso a datos)
 - **PostgreSQL** (base de datos)
+- **kafkajs** (Kafka producer)
 - **Axios** (comunicación HTTP con product-service)
+- **jsonwebtoken** (JWT)
+
+---
+
+## Kafka — Integración con shipment-service
+
+### Resumen
+
+Cuando una orden cambia a estado `PAID`, el order-service publica un evento en el topic `"order-paid"`. El **shipment-service** consume ese evento para crear un envío asociado a esa orden.
+
+### Infraestructura (Docker)
+
+El proyecto raíz tiene un `docker-compose.yml` con Kafka en modo KRaft (sin Zookeeper):
+
+```yaml
+services:
+  kafka:
+    image: apache/kafka:4.3.0
+    container_name: kafka-container
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+```
+
+```bash
+# Iniciar Kafka
+docker compose up -d
+```
+
+### Variable de entorno
+
+```env
+KAFKA_BROKER="localhost:9092"
+```
+
+El microservicio usa esta variable para saber dónde conectarse a Kafka. Si no está configurada, usa `localhost:9092` por defecto.
+
+### Archivos del módulo Kafka
+
+```
+src/services/kafka/
+├── kafka.producer.ts              # Clase productora
+└── events/
+    └── order-paid.event.ts        # Interfaz del evento
+```
+
+### KafkaProducer — clase
+
+Ubicación: `src/services/kafka/kafka.producer.ts`
+
+```typescript
+class KafkaProducer {
+  private producer: Producer;
+  private connected = false;
+
+  constructor(broker: string) {
+    const kafka = new Kafka({
+      clientId: 'order-service',
+      brokers: [broker],
+    });
+    this.producer = kafka.producer();
+  }
+
+  async connect(): Promise<void> {
+    if (this.connected) return;
+    await this.producer.connect();
+    this.connected = true;
+  }
+
+  async publish<T>(topic: string, message: T): Promise<void> {
+    await this.connect();
+    await this.producer.send({
+      topic,
+      messages: [{ value: JSON.stringify(message) }],
+    });
+  }
+
+  async disconnect(): Promise<void> {
+    await this.producer.disconnect();
+    this.connected = false;
+  }
+}
+```
+
+Características:
+- **Conexión lazy**: si no está conectado, se conecta automáticamente al hacer `publish()`
+- **Método genérico** `<T>`: el tipo del mensaje se infiere automáticamente
+- **Idempotente**: `connect()` solo conecta una vez
+
+### OrderPaidEvent — interfaz del evento
+
+Ubicación: `src/services/kafka/events/order-paid.event.ts`
+
+```typescript
+interface OrderPaidEvent {
+  eventType: 'ORDER_PAID';
+  orderId: string;
+  customerId: number;
+  customerName: string;
+  customerEmail: string;
+  items: Array<{
+    productId: number;
+    productName: string;
+    quantity: number;
+  }>;
+}
+```
+
+**Campos:**
+
+| Campo | Tipo | ¿Para qué lo usa shipment? |
+|-------|------|---------------------------|
+| `orderId` | `string` | Identifica el envío (es el mismo ID) |
+| `customerId` | `number` | Para obtener la dirección desde user-service vía REST |
+| `customerName` | `string` | Etiqueta del paquete (destinatario) |
+| `customerEmail` | `string` | Dato de contacto / doble validación |
+| `items` | `array` | Lista de productos a empaquetar (id, nombre, cantidad) |
+
+**Lo que NO se envía** (y por qué):
+- `totalAmount`: al shipment no le interesa el precio
+- `unitPrice`: el shipment no necesita saber el precio unitario
+- `timestamp`: el shipment genera su propio timestamp
+
+### ¿Cuándo y cómo se publica?
+
+En `OrderServiceImpl.updateStatus()`, después de actualizar la orden a `PAID`:
+
+```typescript
+async updateStatus(id: string, newStatus: OrderStatus): Promise<Order> {
+  // ... validación de transición ...
+
+  const orderSaved = await this.orderRepository.updateStatus(id, newStatus);
+
+  if (newStatus === OrderStatus.PAID && orderSaved.getId()) {
+    const event: OrderPaidEvent = {
+      eventType: 'ORDER_PAID',
+      orderId: orderSaved.getId(),
+      customerId: orderSaved.getCustomerId(),
+      customerName: orderSaved.getCustomerName(),
+      customerEmail: orderSaved.getCustomerEmail(),
+      items: orderSaved.getItems().map(item => ({
+        productId: item.getProductId(),
+        productName: item.getProductName(),
+        quantity: item.getQuantity(),
+      })),
+    };
+    await this.kafkaProducer.publish('order-paid', event);
+  }
+
+  return orderSaved;
+}
+```
+
+**Validación doble:**
+1. `newStatus === OrderStatus.PAID` — solo publica si el nuevo estado es PAID
+2. `orderSaved.getId()` — solo publica si la orden se guardó correctamente (tiene ID)
+
+### Startup — conexión al iniciar
+
+En `server.ts` el producer se conecta antes de que el servidor empiece a aceptar requests:
+
+```typescript
+async function start() {
+  try {
+    await kafkaProducer.connect();
+    logger.info("Kafka producer connected");
+    await prisma.$connect();
+    logger.info("database connected sucessfully");
+  } catch (err) {
+    logger.warn('Kafka not available, will retry on publish:', (err as Error).message);
+  }
+
+  app.listen(PORT, () => {
+    logger.info(`Order service running on port ${PORT}`);
+  });
+}
+```
+
+Si Kafka no está disponible al iniciar, el servicio igual arranca (graceful degradation) y el `publish()` reintentará la conexión automáticamente gracias al flag `connected` en el producer.
+
+### Flujo completo
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant OrderService
+    participant Kafka
+    participant ShipmentService
+
+    Client->>OrderService: PUT /order/:id/status { status: PAID }
+    OrderService->>OrderService: Valida transición PENDING → PAID
+    OrderService->>OrderService: Actualiza DB
+    OrderService->>Kafka: Publica "order-paid"
+    Kafka->>ShipmentService: Consume "order-paid"
+    ShipmentService->>ShipmentService: Crea Shipment(orderId, PREPARING)
+```
+
+---
 
 ## Estructura del proyecto
 
@@ -64,7 +273,7 @@ order-service/
 ├── generated/                    # Prisma client
 ├── src/
 │   ├── app.ts                    # Configuración Express
-│   ├── server.ts                 # Entry point
+│   ├── server.ts                 # Entry point (conexión Kafka + DB)
 │   ├── config/
 │   │   ├── logger.ts             # Winston logger
 │   │   └── swagger.ts            # Configuración Swagger OpenAPI
@@ -74,7 +283,7 @@ order-service/
 │   │   └── user.context.ts       # AsyncLocalStorage para JWT
 │   ├── routes/
 │   │   ├── index.route.ts        # Agrupador de rutas
-│   │   ├── order.route.ts       # Rutas de orders (con docs Swagger)
+│   │   ├── order.route.ts       # Rutas + DI + export kafkaProducer
 │   │   ├── api.route.ts         # Ruta raíz del microservicio
 │   │   └── health.route.ts      # Health check
 │   ├── controllers/
@@ -86,9 +295,13 @@ order-service/
 │   │   │   └── order.mapper.ts  # DTO ↔ Domain
 │   │   └── order.controller.ts  # Clase controladora
 │   ├── services/
+│   │   ├── kafka/
+│   │   │   ├── kafka.producer.ts         # Clase KafkaProducer
+│   │   │   └── events/
+│   │   │       └── order-paid.event.ts   # Interfaz OrderPaidEvent
 │   │   ├── order/
 │   │   │   ├── order.service.interface.ts   # Interfaz
-│   │   │   └── order.service.impl.ts       # Implementación
+│   │   │   └── order.service.impl.ts       # Implementación + publish
 │   │   └── product/
 │   │       ├── dto/product.dto.ts          # DTO de product-service
 │   │       ├── product.client.interface.ts
@@ -118,6 +331,8 @@ order-service/
 └── README.md
 ```
 
+---
+
 ## Modelos (Clases)
 
 ### OrderItem
@@ -130,7 +345,7 @@ class OrderItem {
   private unitPrice: number;
 
   constructor(productId, productName, quantity, unitPrice);
-  
+
   // Getters y Setters
   getProductId(): number;
   setProductId(value: number): void;
@@ -140,7 +355,7 @@ class OrderItem {
   setQuantity(value: number): void;
   getUnitPrice(): number;
   setUnitPrice(value: number): void;
-  
+
   toString(): string;
 }
 ```
@@ -156,31 +371,23 @@ class Order {
   private items: OrderItem[];
   private totalAmount: number;
   private status: OrderStatus;
-  private readonly createdAt: Date;
-  private updatedAt: Date;
-  private deletedAt: Date | null;
 
   constructor(id, customerId, customerName, customerEmail, items, totalAmount, status);
-  
-  // Getters y Setters para cada campo
-  // ...
-  
+
+  // Getters y Setters
+  getId(): string;
+  getCustomerId(): number;
+  getCustomerName(): string;
+  getCustomerEmail(): string;
+  getTotalAmount(): number;
+  getStatus(): OrderStatus;
+  getItems(): OrderItem[];
+
   toString(): string;
 }
 ```
 
-## Interfaz del Service
-
-```typescript
-interface OrderService {
-  create(order: Order): Promise<Order>;
-  getAll(): Promise<Order[]>;
-  getById(id: string): Promise<Order | null>;
-  getByCustomerId(customerId: number): Promise<Order[]>;
-  updateStatus(id: string, status: OrderStatus): Promise<Order>;
-  delete(id: string): Promise<void>;
-}
-```
+---
 
 ## Estados (OrderStatus)
 
@@ -202,16 +409,18 @@ PENDING ──► PAID ──► PREPARING ──► SHIPPED
    └──► CANCELLED ◄────────┘
 ```
 
-| Desde       | Hacia       | Descripción                     |
-|-------------|-------------|----------------------------------|
-| `PENDING`   | `PAID`      | Pago confirmado                  |
-| `PENDING`   | `CANCELLED` | Orden cancelada por el usuario   |
-| `PAID`      | `PREPARING` | Preparación del pedido iniciada  |
-| `PAID`      | `CANCELLED` | Cancelación post-pago (reembolso)|
-| `PREPARING` | `SHIPPED`   | Pedido enviado                   |
-| `PREPARING` | `CANCELLED` | Cancelación durante preparación  |
-| `SHIPPED`   | —           | Estado terminal, no cambia       |
-| `CANCELLED` | —           | Estado terminal, no cambia       |
+| Desde | Hacia | Descripción |
+|-------|-------|-------------|
+| `PENDING` | `PAID` | Pago confirmado — **dispara evento Kafka** |
+| `PENDING` | `CANCELLED` | Orden cancelada por el usuario |
+| `PAID` | `PREPARING` | Preparación del pedido iniciada |
+| `PAID` | `CANCELLED` | Cancelación post-pago |
+| `PREPARING` | `SHIPPED` | Pedido enviado |
+| `PREPARING` | `CANCELLED` | Cancelación durante preparación |
+| `SHIPPED` | — | Terminal |
+| `CANCELLED` | — | Terminal |
+
+---
 
 ## Endpoints
 
@@ -223,22 +432,27 @@ PENDING ──► PAID ──► PREPARING ──► SHIPPED
 | GET | `/api/order/my` | ✅ JWT | Órdenes del usuario autenticado |
 | GET | `/api/order/:id` | ✅ JWT | Obtener orden por ID |
 | POST | `/api/order` | ✅ JWT | Crear nueva orden |
-| PUT | `/api/order/:id/status` | ❌ | Actualizar estado (uso interno entre microservicios) |
+| PUT | `/api/order/:id/status` | ❌ | Actualizar estado (uso interno entre micros) |
 
-> **Nota:** `GET /api/order` acepta query param opcional `?status=PENDING|PAID|PREPARING|SHIPPED|CANCELLED` para filtrar.
+> **Nota:** `PUT /api/order/:id/status` no requiere JWT porque es llamado internamente por otros microservicios.
+> Cuando se actualiza a `PAID`, se publica automáticamente el evento Kafka `"order-paid"`.
 
-## Flujo de datos para creación orden
+---
 
-1. **Frontend** envía JWT en header + items en body
-2. **Middleware JWT** decodifica y guarda en `userContext` (AsyncLocalStorage)
+## Flujo de datos para creación de orden
+
+1. **Frontend** envía JWT + items en body
+2. **Middleware JWT** decodifica y guarda en `userContext`
 3. **Controller** crea `Order` con datos del contexto + items
 4. **Service** valida productos con product-service (HTTP)
-5. **Service** crea orden en DB
+5. **Service** calcula total y crea orden en DB
 6. **Response** al cliente
+
+---
 
 ## Autenticación JWT con AsyncLocalStorage
 
-### Flujo de autenticación
+### Flujo
 
 ```
 Frontend → Authorization: Bearer <token>
@@ -252,50 +466,7 @@ userContext.run(decoded, () => next())
 Request entra en contexto → cualquier layer puede acceder
 ```
 
-### Middleware (token.interceptor.ts)
-
-```typescript
-const middleware_security = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'] as string | undefined;
-
-  if (!authHeader) {
-    return res.status(401).json({ message: 'The Token is required' });
-  }
-
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ message: 'The Token is invalid' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, secretKey as string) as UserDTO;
-    userContext.run(decoded, () => {
-      next();
-    });
-  } catch (err) {
-    return res.status(401).json({ message: 'The Token is invalid' });
-  }
-};
-```
-
-### Contexto global (user.context.ts)
-
-```typescript
-import { AsyncLocalStorage } from "node:async_hooks";
-
-const userContext = new AsyncLocalStorage<{
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}>();
-
-export default userContext;
-```
-
 ### Uso del contexto
-
-En controller, service o repository:
 
 ```typescript
 import userContext from '../context/user.context.js';
@@ -304,15 +475,13 @@ const user = userContext.getStore();
 // user.id, user.name, user.email, user.role
 ```
 
-### Generador de token de prueba
+### Generar token de prueba
 
 ```bash
-# Generar token con node
 node token_generate.js
 ```
 
-El token contiene:
-
+Payload del token:
 ```json
 {
   "id": 1,
@@ -322,11 +491,7 @@ El token contiene:
 }
 ```
 
-### Beneficios de AsyncLocalStorage
-
-- **Acceso global**: No necesitás pasar el usuario por parámetros en cada función
-- **Aislamiento por request**: Cada request tiene su propio contexto
-- **Compatible con async/await**: Funciona correctamente con operaciones asíncronas
+---
 
 ## Scripts
 
@@ -336,20 +501,34 @@ El token contiene:
 | `npm run build` | Compilar TypeScript |
 | `npm run start` | Iniciar producción (node dist/server.js) |
 
-## Documentación API (Swagger)
+---
 
-La documentación interactiva de la API está disponible en:
+## Documentación API (Swagger)
 
 ```
 http://localhost:3000/api/docs
 ```
 
-Incluye:
-- Todos los endpoints con sus parámetros y schemas
-- Autenticación JWT mediante el botón **Authorize**
-- Prueba interactiva de cada operación
+Incluye endpoints, schemas y autenticación JWT.
 
-## Estado actual del desarrollo
+---
+
+## Comandos útiles
+
+```bash
+# Iniciar Kafka (desde la raíz del proyecto)
+docker compose up -d
+
+# Iniciar order-service
+npm run dev
+
+# Verificar que Kafka está corriendo
+docker compose ps
+```
+
+---
+
+## Estado del desarrollo
 
 - ✅ Setup básico (Express, TypeScript, dotenv)
 - ✅ Modelos como clases (Order, OrderItem)
@@ -362,6 +541,9 @@ Incluye:
 - ✅ Cliente HTTP para product-service (Axios)
 - ✅ JWT middleware con AsyncLocalStorage
 - ✅ Documentación Swagger UI en `/api/docs`
+- ✅ **Kafka producer — publica "order-paid" cuando status → PAID**
+- ✅ **Conexión lazy del producer**
+- ✅ **Graceful degradation si Kafka no está disponible**
 
 ---
 

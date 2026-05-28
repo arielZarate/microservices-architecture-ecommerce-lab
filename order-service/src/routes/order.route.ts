@@ -5,12 +5,18 @@ import OrderServiceImpl  from '../services/order/order.service.impl.js';
 import ProductClientService from '../services/product/product.client.service.js';
 import OrderRepositoryImpl from '../persistence/order/order.repository.impl.js';
 import middleware_security from '../middlewares/token.interceptor.js';
+import KafkaInstance from '../kafka/index.js';
+import kafkaInstance from '../kafka/index.js';
 
 const url = process.env.PRODUCT_SERVICE_URL || 'http://localhost:8080/api';
 
+
+//====INYECTAR KAFKA=========
+
 const productClient = new ProductClientService(url);
 const orderRepository = new OrderRepositoryImpl();
-const orderService: OrderService = new OrderServiceImpl(productClient, orderRepository);
+
+const orderService: OrderService = new OrderServiceImpl(productClient, orderRepository,kafkaInstance);
 const orderController = new OrderController(orderService);
 
 const router = express.Router();

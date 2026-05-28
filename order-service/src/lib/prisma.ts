@@ -20,18 +20,3 @@ const prisma = new PrismaClient({ adapter });
 export default prisma ;
 
 
-
-/*
-const testConnection = async () => {
-  try {
-    await prisma.$connect();
-    console.log("Connection to the database was successful!");
-  } catch (error) {
-    console.error("Error connecting to the database:", error);
-      await prisma.$disconnect();
-  } 
-};
-
-testConnection();   
-
-*/
