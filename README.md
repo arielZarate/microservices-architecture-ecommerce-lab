@@ -29,17 +29,17 @@ La comunicación se divide en dos tipos según la necesidad:
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                                                             │
-│  ┌──────────────┐   REST    ┌──────────────┐   Kafka    ┌───────────────┐  │
-│  │ user-service  │◄──────┐  │ order-service │◄──────────►│shipping-service│  │
-│  │ (Node, auth)  │       │  │ (Node, Kafka) │            │ (Kotlin)      │  │
-│  └──────────────┘       │  └──────┬────────┘            └───────────────┘  │
+│  ┌──────────────┐   REST    ┌──────────────┐   Kafka    ┌────────────────┐ │
+│  │ user-service  │◄──────┐  │ order-service │◄──────────►│shipment-service│ │
+│  │ (Node, auth)  │       │  │ (Node, Kafka) │            │ (Kotlin)       │ │
+│  └──────────────┘       │  └──────┬────────┘            └────────────────┘ │
 │                          │         │                                        │
 │                          │         │ REST                                   │
 │                          │         ▼                                        │
-│                          │  ┌──────────────┐   ┌──────────────────┐        │
-│                          └──►product-service│   │notification-svc  │        │
-│                             │ (Java, REST)  │   │ (futuro)         │        │
-│                             └──────────────┘   └──────────────────┘        │
+│                          │  ┌──────────────┐                               │
+│                          └──►product-service│                               │
+│                             │ (Java, REST)  │                               │
+│                             └──────────────┘                               │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -49,50 +49,49 @@ La comunicación se divide en dos tipos según la necesidad:
 | Servicio | Lenguaje / Framework | Comunicación | Responsabilidad |
 |---|---|---|---|
 | **user-service** | Node.js / Express | REST | Registro, login, generación de JWT |
-| **product-service** | Java 21 / Spring Boot | REST (no usa Kafka) | Catálogo de productos, CRUD, filtros |
-| **order-service** | Node.js / Express + Prisma | REST + Kafka (produce y consume) | Órdenes de compra, estados, validación con products |
-| **shipping-service** | Kotlin / Spring Boot (nuevo) | Kafka (consume y produce) | Prepara pedidos, scheduler de envío, actualiza estados |
+| **product-service** | Java 21 / Spring Boot | REST | Catálogo de productos, CRUD, filtros |
+| **order-service** | Node.js / Express + Prisma | REST + Kafka (produce) | Órdenes de compra, estados, publica evento OrderPaid |
+| **shipment-service** | Kotlin / Spring Boot 4.0.6 | Kafka (consume) + REST | Prepara pedidos, consume OrderPaid, scheduler de envío |
 | **notification-service** | Por definir (futuro) | Kafka (consume) | Notificaciones a clientes (email, etc.) |
 
 ---
 
 ## 🔄 Flujo de eventos (Kafka)
 
-El corazón asíncrono del sistema. order-service produce eventos, shipping-service los consume, procesa y responde.
-
+### Implementado
 ```
-order-service                          shipping-service (Kotlin)          notification-service (futuro)
-─────────────────                      ────────────────────────────       ────────────────────────────
+order-service → Kafka "order-paid" → shipment-service (pendiente implementar consumer)
 
-  Crea orden
-    → REST GET /products/{id}
+PUT /api/order/:id/status → PAID
+  → OrderServiceImpl.updateStatus()
     → Guarda en DB
-    → publica "OrderCreated" ──────►   consume (solo log, sin acción)
+    → Publica "order-paid" { orderId, customerId, items, ... }
+```
+
+### Planificado completo
+```
+order-service                          shipment-service (Kotlin)
+─────────────────                      ─────────────────────────
 
   PUT /status → PAID (manual)
     → publica "OrderPaid"    ──────►   consume "OrderPaid"
+                                          → Crea Shipment(orderId, PREPARING)
                                           → PUT /order/:id/status → PREPARING
                                           → scheduler 3 minutos
                                           → PUT /order/:id/status → SHIPPED
                                           → publica "OrderShipped"
 
-                  ◄──────────────────────── consume "OrderShipped"
+                  ◄────────────────────── consume "OrderShipped"
   consume "OrderShipped"
     → actualiza status a SHIPPED
-                                                                ┌──► consume eventos
-                                                                │   (futuro: notificar
-                                                                │    al cliente)
 ```
 
 ### Eventos del sistema
 
-| Evento | Producer | Consumer | Cuándo ocurre |
-|---|---|---|---|
-| `OrderCreated` | order-service | shipping-service (log) | Se crea una orden nueva |
-| `OrderPaid` | order-service | shipping-service | Pago simulado (manual) |
-| `OrderShipped` | shipping-service | order-service, notification-svc (futuro) | Envío completado tras 3 min |
-
-> **Importante:** product-service solo usa REST. Cuando order-service crea una orden, llama síncronamente a `GET /products/{id}` para validar el producto y obtener precio/nombre. No entra en el flujo de Kafka.
+| Evento | Topic | Producer | Consumer | Estado |
+|---|---|---|---|---|
+| `OrderPaid` | `order-paid` | order-service | shipment-service | ✅ Producer implementado |
+| `OrderShipped` | `order-shipped` | shipment-service | order-service | ⏳ Pendiente |
 
 ---
 
@@ -120,46 +119,32 @@ Frontend → POST /api/auth/login { email, password }
 
 ### Backend
 - **Java** + Spring Boot (product-service)
-- **Kotlin** + Spring Boot (shipping-service)
-- **Node.js** + Express + TypeScript (order-service, user-service, notification-service)
-- Spring Data JPA
-- Prisma ORM
+- **Kotlin** + Spring Boot (shipment-service)
+- **Node.js** + Express + TypeScript (order-service, user-service)
 
 ### Mensajería
 - **Apache Kafka** (eventos asíncronos)
 
 ### Base de datos (una por servicio)
 - PostgreSQL
-- MySQL
-- MongoDB (no SQL, opcional)
 
 ### Infraestructura
 - Docker
-- Kubernetes (Minikube)
-
-### Observabilidad (fase avanzada)
-- Prometheus + Grafana
 
 ---
 
 ## 📂 Estructura del proyecto
 
 ```bash
-microservices-architecture-lab/
+microservices-architecture-ecommerce-lab/
 │
 ├── user-service/              # Node/Express + TypeScript
 ├── products-service/          # Java 21 + Spring Boot / Hexagonal
-│   ├── src/main/java/
-│   │   ├── domain/            # Modelos y puertos
-│   │   ├── application/       # Casos de uso
-│   │   ├── infraestructure/   # Adapters, persistence, rest
-│   │   └── interfaces/        # Controllers, DTOs, errores
-│   └── README.md
 ├── order-service/             # Node/Express + TypeScript + Prisma + Kafka
-├── shipping-service/          # Kotlin + Spring Boot + Kafka (nuevo)
-├── notification-service/      # (futuro)
-├── docker-compose.yml         # Zookeeper, Kafka, DBs
-└── README.md                  # ← Estás acá
+├── shipment/                  # Kotlin + Spring Boot 4.0.6 + Kafka (consumer pendiente)
+├── docker-compose.yml         # Zookeeper + Kafka
+├── AGENTS.md                  # Contexto para opencode
+└── README.md
 ```
 
 Cada servicio tiene su propio README con detalles de implementación, endpoints y configuración.
@@ -169,14 +154,14 @@ Cada servicio tiene su propio README con detalles de implementación, endpoints 
 ## 🧩 Roadmap
 
 ### Fase 1: Microservicios Core (REST)
-- **product-service** (Java) ✅ Catálogo de productos, CRUD, FakeStore API, Swagger
-- **user-service** 🔄 Registro y login con JWT
-- **order-service** 🔄 Órdenes, estados, JWT, consumo de products via REST
+- **product-service** ✅ Catálogo de productos, CRUD, FakeStore API, Swagger
+- **user-service** ✅ Registro y login con JWT
+- **order-service** ✅ Órdenes, estados, JWT, consumo de products via REST
 
 ### Fase 2: Integración Kafka (eventos)
-- **order-service** → Produce `OrderCreated`, `OrderPaid`. Consume `OrderShipped`
-- **shipping-service** (Kotlin) → Consume `OrderPaid`, produce `OrderShipped` con scheduler 3 min
-- Kafka + Zookeeper en Docker Compose
+- **order-service** ✅ Produce `OrderPaid` cuando status → PAID
+- **shipment-service** 🔧 Consumir `OrderPaid`, crear shipment, producir `OrderShipped`
+- Kafka + Zookeeper en Docker Compose ✅
 
 ### Fase 3: Containerización
 - Dockerizar todos los servicios
@@ -194,6 +179,21 @@ Cada servicio tiene su propio README con detalles de implementación, endpoints 
 
 ### Fase 7: Notification Service
 - Nuevo micro que consume eventos de Kafka y notifica al cliente
+
+---
+
+## 🚀 Comandos
+
+```bash
+# Iniciar Kafka
+docker compose up -d
+
+# Order service (dev)
+cd order-service && npm run dev
+
+# Shipment service
+cd shipment && ./mvnw spring-boot:run
+```
 
 ---
 

@@ -1,19 +1,21 @@
 import OrderService from './order.service.interface.js';
 import Order from '../../models/order.model.js';
-import OrderItem from '../../models/orderItem.model.js';
 import OrderStatus from '../../models/enum/orderStatus.js';
 import userContext from '../../context/user.context.js';
 import ProductClient from '../product/product.client.interface.js';
 import OrderRepository from '../../persistence/order/order.repository.interface.js';
 import ProductDTO from '../product/dto/product.dto.js';
 import { HttpError } from '../../middlewares/errorHandler.js';
-
+import KafkaProducer from '../../kafka/kafka.producer.js';
+import OrderPaidEvent from '../../kafka/order-event.interface.js';
+import logger from '../../config/logger.js';
 
 class OrderServiceImpl implements OrderService {
 
   constructor(
     private productClient: ProductClient,
-    private orderRepository: OrderRepository
+    private orderRepository: OrderRepository,
+    private kafkaProducer: KafkaProducer
   ) {}
 
 
@@ -100,7 +102,6 @@ class OrderServiceImpl implements OrderService {
 
   }
 
- 
   //====================update status=========================
   async updateStatus(id: string, newStatus: OrderStatus): Promise<Order> {
     const order = await this.orderRepository.getById(id);
@@ -116,10 +117,30 @@ class OrderServiceImpl implements OrderService {
       );
     }
 
-    return this.orderRepository.updateStatus(id, newStatus);
+    const orderSaved = await this.orderRepository.updateStatus(id, newStatus);
+
+    if (newStatus === OrderStatus.PAID && orderSaved.getId()) {
+      const event: OrderPaidEvent = {
+        eventType: 'ORDER_PAID',
+        orderId: orderSaved.getId(),
+        customerId: orderSaved.getCustomerId(),
+        customerName: orderSaved.getCustomerName(),
+        customerEmail: orderSaved.getCustomerEmail(),
+        items: orderSaved.getItems().map(item => ({
+          productId: item.getProductId(),
+          productName: item.getProductName(),
+          quantity: item.getQuantity(),
+          unitPrice: item.getUnitPrice(),
+        }))
+      };
+
+  
+      await this.kafkaProducer.publish('order-paid', event);
+      logger.info('KAFKA-EVENTS-> ORDER-PAID ... published');
+    }
+
+    return orderSaved;
   }
-
-
 
 
 

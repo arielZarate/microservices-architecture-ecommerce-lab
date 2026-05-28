@@ -5,7 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d28ea94c-32c8-48d6-bd74-3a65976b2da8" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/.env" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/node_modules/.package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/node_modules/.package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/src/lib/prisma.ts" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/src/lib/prisma.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/src/routes/order.route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/src/routes/order.route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/src/server.ts" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/src/server.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/src/services/order/order.service.impl.ts" beforeDir="false" afterPath="$PROJECT_DIR$/order-service/src/services/order/order.service.impl.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/order-service/token_generate.js" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -15,10 +26,10 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "customColor": "",
-  "associatedIndex": 5
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 5
+}</component>
   <component name="ProjectId" id="3EKBoZ4vWRtl25SVo2h0F12f1Jc" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -33,13 +44,15 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "feature/kafka-consume-order",
     "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/home/ariel/Escritorio/Repo/microservices-architecture-ecommerce-lab",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm"
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager"
   }
 }]]></component>
   <component name="RunManager">
@@ -48,6 +61,11 @@
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="microservices-architecture-ecommerce-lab" />
+      <option name="filePath" />
+      <method v="2" />
     </configuration>
   </component>
   <component name="TaskManager">
