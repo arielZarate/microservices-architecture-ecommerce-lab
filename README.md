@@ -142,7 +142,7 @@ microservices-architecture-ecommerce-lab/
 ├── products-service/          # Java 21 + Spring Boot / Hexagonal
 ├── order-service/             # Node/Express + TypeScript + Prisma + Kafka
 ├── shipment/                  # Kotlin + Spring Boot 4.0.6 + Kafka (consumer pendiente)
-├── docker-compose.yml         # Zookeeper + Kafka
+├── docker-compose.yml         # Kafka en modo KRaft (sin Zookeeper)
 ├── AGENTS.md                  # Contexto para opencode
 └── README.md
 ```

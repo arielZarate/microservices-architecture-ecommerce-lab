@@ -68,26 +68,24 @@ Cuando una orden cambia a estado `PAID`, el order-service publica un evento en e
 
 ### Infraestructura (Docker)
 
-El proyecto raíz tiene un `docker-compose.yml` que levanta Kafka y Zookeeper:
+El proyecto raíz tiene un `docker-compose.yml` con Kafka en modo KRaft (sin Zookeeper):
 
 ```yaml
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    ports: ["2181:2181"]
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-
   kafka:
-    image: confluentinc/cp-kafka:latest
-    depends_on: [zookeeper]
-    ports: ["9092:9092"]
+    image: apache/kafka:4.3.0
+    container_name: kafka-container
+    ports:
+      - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 ```
 
 ```bash
