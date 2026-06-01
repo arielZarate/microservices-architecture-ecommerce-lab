@@ -23,7 +23,8 @@ class ErrorHandler {
             title = ex.clientError.title,
             status = ex.clientError.status,
             detail = ex.clientError.detail,
-            instance = request.requestURI
+            instance = request.requestURI,
+            errors = null
         )
         return ResponseEntity.status(error.status).body(error)
     }
@@ -36,7 +37,8 @@ class ErrorHandler {
             title = getTitleForStatus(appError.status),
             status = appError.status,
             detail = appError.message,
-            instance = request.requestURI
+            instance = request.requestURI,
+            errors = null
         )
         return ResponseEntity.status(clientError.status).body(clientError)
     }
@@ -49,7 +51,8 @@ class ErrorHandler {
             title = "Internal Server Error",
             status = 500,
             detail = ex.message ?: "No detail",
-            instance = request.requestURI
+            instance = request.requestURI,
+            errors = null
         )
         return ResponseEntity.status(500).body(error)
     }
