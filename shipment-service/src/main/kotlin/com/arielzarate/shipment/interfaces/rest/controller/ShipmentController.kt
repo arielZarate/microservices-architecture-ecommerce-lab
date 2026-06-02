@@ -54,7 +54,7 @@ class ShipmentController(
 //            ApiResponse(responseCode = "404", description = "Shipment not found")
 //        ]
 //    )
-    fun getShipmentByOrderId(@PathVariable orderId: Long): ResponseEntity<ShipmentResponseDTO> {
+    fun getShipmentByOrderId(@PathVariable orderId: String): ResponseEntity<ShipmentResponseDTO> {
         log.info("Fetching shipment for order: {}", orderId)
         val shipment = service.getShipmentByOrderId(orderId)
         log.info("Response GET Shipment of order id {} ", orderId)

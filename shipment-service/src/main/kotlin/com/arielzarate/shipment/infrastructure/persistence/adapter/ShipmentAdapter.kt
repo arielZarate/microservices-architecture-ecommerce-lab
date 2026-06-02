@@ -16,7 +16,13 @@ class ShipmentAdapter(
         return repository.findAll().map { mapper.toDomain(it) }
     }
 
-    override fun findByOrderId(orderId: Long): Shipment? {
+    override fun findByOrderId(orderId: String): Shipment? {
         return repository.findById(orderId).map (mapper::toDomain).orElse(null)
+    }
+
+    override fun save(shipment: Shipment): Shipment {
+        val entity = mapper.toEntity(shipment)
+        val saved = repository.save(entity)
+        return mapper.toDomain(saved)
     }
 }

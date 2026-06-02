@@ -1,8 +1,10 @@
 package com.arielzarate.shipment.domain.ports.`in`
 
+import com.arielzarate.shipment.domain.model.Address
 import com.arielzarate.shipment.domain.model.Shipment
 
 interface ShipmentService {
     fun getAllShipments(): List<Shipment>
-    fun getShipmentByOrderId(orderId: Long): Shipment
+    fun getShipmentByOrderId(orderId: String): Shipment
+    fun createShipment(orderId: String): Shipment
 }

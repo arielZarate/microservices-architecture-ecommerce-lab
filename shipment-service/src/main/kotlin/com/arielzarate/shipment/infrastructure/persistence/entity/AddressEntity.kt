@@ -4,30 +4,22 @@ import jakarta.persistence.*
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "shipment")
-class ShipmentEntity(
+@Table(name = "address")
+class AddressEntity(
     @Id
-    @Column(columnDefinition = "UUID")
-    val id: String,
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    var status: ShipmentStatusEntity,
-
-    var trackingCode: String? = null,
-
-    @OneToOne(cascade = [CascadeType.ALL])
-    @JoinColumn(name = "address_id")
-    var address: AddressEntity? = null
+    var address: String? = null,
+    var neighborhood: String? = null,
+    var city: String? = null,
+    var postalCode: String? = null,
+    var country: String? = null
 ) {
     @Column(updatable = false)
     var createdAt: LocalDateTime? = null
 
-
     var updatedAt: LocalDateTime? = null
-
-
-    var deletedAt: LocalDateTime? = null
 
     @PrePersist
     fun prePersist() {
