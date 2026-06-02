@@ -15,7 +15,8 @@ class AddressClientImpl(
     @Value("\${externals.address-client.timeout}") private val timeout: Long,
     @Value("\${externals.address-client.host}") private val host: String,
     @Value("\${externals.address-client.path}") private val path: String,
-    @Value("\${external.api-key}") private val apiKey: String
+    @Value("\${external.api-key}") private val apiKey: String,
+    @Value("\${external.device-id}") private val deviceId: String
 
 ) : AddressClient {
 
@@ -38,11 +39,11 @@ class AddressClientImpl(
 
 
     fun getHeaders(): Map<String, String> {
-        val api = "X-api-Key" to apiKey
-        val application = "X-Application" to "shipment-service"
+        val apiId = "X-Middleware-ApiKey" to apiKey
+        val device = "X-Middleware-DeviceId" to deviceId
 
         return mapOf(
-            application, api
+            apiId, device
         )
     }
 
