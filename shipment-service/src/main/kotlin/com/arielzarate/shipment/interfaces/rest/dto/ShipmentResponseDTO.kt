@@ -4,12 +4,16 @@ import io.swagger.v3.oas.annotations.media.Schema
 
 //@Schema(description = "Shipment response DTO")
 data class ShipmentResponseDTO(
-    //   @Schema(description = "Order ID (same as shipment ID)", example = "1")
-    val orderId: Long,
-
-    //  @Schema(description = "Shipment status", example = "PREPARING")
+    val orderId: String,
     val status: String,
+    val trackingCode: String?,
+    val address: AddressResponseDTO?
+)
 
-    //@Schema(description = "Tracking code", example = "SHP-ABC123")
-    val trackingCode: String?
+data class AddressResponseDTO(
+    val address: String?,
+    val neighborhood: String?,
+    val city: String?,
+    val postalCode: String?,
+    val country: String?
 )
