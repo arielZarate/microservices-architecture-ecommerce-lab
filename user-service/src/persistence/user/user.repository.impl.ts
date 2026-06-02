@@ -2,9 +2,29 @@ import User from '../../models/user.model.js';
 import UserRepository from './user.repository.interface.js';
 import UserMapperRepository from '../mappers/user.mapper.js';
 import UserPrismaResponse from '../dto/user.prisma.dto.js';
+import AddressPrismaResponse from '../dto/address.prisma.dto.js';
 import prisma from '../../lib/prisma.js';
 
 export default class UserRepositoryImpl implements UserRepository {
+
+
+  async findAddressByCustomerId(customerId: number): Promise<AddressPrismaResponse | null> {
+    const found = await prisma.user.findUnique({
+      where: { id: customerId },
+      select: {
+        id: true,
+        address: true,
+        neighborhood: true,
+        city: true,
+        postalCode: true,
+        country: true,
+      },
+    });
+
+    return found as unknown as AddressPrismaResponse | null;
+  }
+
+
 
   async create(user: User): Promise<User> {
     const created = await prisma.user.create({
@@ -27,6 +47,15 @@ export default class UserRepositoryImpl implements UserRepository {
     });
 
     return UserMapperRepository.fromPrisma(created as unknown as UserPrismaResponse);
+  }
+
+  async findById(id: number): Promise<User | null> {
+    const found = await prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!found) return null;
+    return UserMapperRepository.fromPrisma(found as unknown as UserPrismaResponse);
   }
 
   async findByEmail(email: string): Promise<User | null> {

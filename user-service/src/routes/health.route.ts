@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import logger from "../config/logger.js";
 
 const router = Router();
 
@@ -6,7 +7,7 @@ router.get('/', (req: Request, res: Response) => {
   const uptime = process.uptime();
   const memory = process.memoryUsage();
 
-  console.log("Health check - Uptime:", uptime, "seconds");
+  logger.info(`Health check - Uptime: ${uptime} seconds`);
   res.send({
     status: 'ok',
     service: 'user-service',
