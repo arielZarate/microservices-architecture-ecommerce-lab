@@ -1,149 +1,216 @@
 # microservices-architecture-ecommerce-lab
 
-## 📌 Descripción
-
-Proyecto de laboratorio enfocado en el diseño e implementación de una **arquitectura de microservicios moderna**,
-utilizando tecnologías del ecosistema Java, Kotlin, JavaScript y herramientas de infraestructura.
-
-El objetivo es construir un sistema tipo e-commerce como excusa para aplicar:
+Proyecto de laboratorio enfocado en el diseño e implementación de una **arquitectura de microservicios moderna**, aplicando:
 
 - Arquitectura hexagonal
 - Comunicación síncrona (REST) y asíncrona (Kafka)
-- Autenticación con JWT
+- Autenticación con JWT + API Key interna entre micros
 - Múltiples lenguajes y frameworks (Node, Java, Kotlin)
 
 ---
 
-## 🧠 Arquitectura
+## Arquitectura
 
 Cada servicio tiene su propia base de datos y están desacoplados.
-La comunicación se divide en dos tipos según la necesidad:
+La comunicación se divide en dos tipos:
 
 | Tipo | Tecnología | Para qué |
 |---|---|---|
-| **Síncrona** | REST | Todo lo que requiere respuesta inmediata (validar producto, autenticar usuario) |
-| **Asíncrona** | Kafka (eventos) | Acciones que no necesitan respuesta inmediata (avisar a otros servicios que algo pasó) |
+| **Síncrona** | REST | Respuesta inmediata (validar producto, autenticar usuario, obtener dirección) |
+| **Asíncrona** | Kafka (eventos) | Acciones que no necesitan respuesta inmediata (notificar a otros servicios) |
 
 ### Diagrama general
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                                                             │
-│  ┌──────────────┐   REST    ┌──────────────┐   Kafka    ┌────────────────┐ │
-│  │ user-service  │◄──────┐  │ order-service │◄──────────►│shipment-service│ │
-│  │ (Node, auth)  │       │  │ (Node, Kafka) │            │ (Kotlin)       │ │
-│  └──────────────┘       │  └──────┬────────┘            └────────────────┘ │
-│                          │         │                                        │
-│                          │         │ REST                                   │
-│                          │         ▼                                        │
-│                          │  ┌──────────────┐                               │
-│                          └──►product-service│                               │
-│                             │ (Java, REST)  │                               │
-│                             └──────────────┘                               │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+                    ┌──────────────────┐
+                    │   user-service   │
+                    │  (Node + JWT)    │
+                    └────────┬─────────┘
+                             │ REST (address)
+                             ▼
+┌──────────────┐   REST   ┌──────────────────┐   Kafka    ┌──────────────────┐
+│ order-service │◄─────── │  shipment-service │◄──────────►│  (futuro)        │
+│ (Node, Kafka) │         │  (Kotlin, Kafka)  │            │ notification-svc │
+└───────┬───────┘         └──────────────────┘            └──────────────────┘
+        │ REST
+        ▼
+┌──────────────────┐
+│ products-service  │
+│ (Java/Spring)     │
+└──────────────────┘
 ```
 
 ### Servicios
 
-| Servicio | Lenguaje / Framework | Comunicación | Responsabilidad |
-|---|---|---|---|
-| **user-service** | Node.js / Express | REST | Registro, login, generación de JWT |
-| **product-service** | Java 21 / Spring Boot | REST | Catálogo de productos, CRUD, filtros |
-| **order-service** | Node.js / Express + Prisma | REST + Kafka (produce) | Órdenes de compra, estados, publica evento OrderPaid |
-| **shipment-service** | Kotlin / Spring Boot 4.0.6 | Kafka (consume) + REST | Prepara pedidos, consume OrderPaid, scheduler de envío |
-| **notification-service** | Por definir (futuro) | Kafka (consume) | Notificaciones a clientes (email, etc.) |
+| Servicio | Lenguaje | Framework | Puerto | Comunicación |
+|---|---|---|---|---|
+| **user-service** | Node.js / TypeScript | Express + Prisma | 4000 | REST (auth, address) |
+| **products-service** | Java 21 | Spring Boot 3.5.13 | 8080 | REST (catálogo) |
+| **order-service** | Node.js / TypeScript | Express + Prisma + KafkaJS | 3000 | REST + Kafka (produce OrderPaid) |
+| **shipment-service** | Kotlin | Spring Boot 4.0.6 | 8081 | Kafka (consume/produce) + REST |
 
 ---
 
-## 🔄 Flujo de eventos (Kafka)
+## Comunicación interna entre micros
 
-### Implementado
+Toda comunicación interna (service-to-service) usa dos headers:
+
 ```
-order-service → Kafka "order-paid" → shipment-service (pendiente implementar consumer)
-
-PUT /api/order/:id/status → PAID
-  → OrderServiceImpl.updateStatus()
-    → Guarda en DB
-    → Publica "order-paid" { orderId, customerId, items, ... }
+X-Middleware-ApiKey: idApp1237897key
+X-Middleware-DeviceId: idDevice321567Device
 ```
 
-### Planificado completo
+El micro que recibe valida ambos antes de procesar la request.
+
+---
+
+## Flujo completo del sistema
+
+### 1. Creación de orden
 ```
-order-service                          shipment-service (Kotlin)
-─────────────────                      ─────────────────────────
-
-  PUT /status → PAID (manual)
-    → publica "OrderPaid"    ──────►   consume "OrderPaid"
-                                          → Crea Shipment(orderId, PREPARING)
-                                          → PUT /order/:id/status → PREPARING
-                                          → scheduler 3 minutos
-                                          → PUT /order/:id/status → SHIPPED
-                                          → publica "OrderShipped"
-
-                  ◄────────────────────── consume "OrderShipped"
-  consume "OrderShipped"
-    → actualiza status a SHIPPED
+Usuario → POST /api/order (con JWT)
+  → order-service valida productos contra products-service
+  → Crea orden con status PENDING
 ```
 
-### Eventos del sistema
+### 2. Pago simulado
+```
+Usuario → PUT /api/order/:id/status → PAID
+  → order-service publica evento "order-paid" a Kafka
+```
+
+### 3. Procesamiento de envío (shipment-service)
+```
+Kafka "order-paid" → shipment-service
+  → AddressUseCase.getAddressByUserId(customerId)
+      → GET /api/address/:customerId (REST a user-service, con API Key)
+      → Guarda address en DB local
+  → Crea Shipment(id=orderId, status=PREPARING, address)
+```
+
+### 4. Ciclo de entrega (shipment-service)
+En un entorno real, shipment-service sería usado por un **equipo de logística/repartidores** que van actualizando el estado del envío a medida que el paquete avanza:
+
+```
+Repartidor (app mobile):
+  → "Salgo a repartir" → PUT SHIPPED
+  → "Entregué" → PUT DELIVERED
+```
+
+Para el laboratorio, se simula este comportamiento con un **cron cada 3 minutos**:
+
+```
+⏰ Cron cada 3 minutos en shipment-service
+  → Busca shipments en PREPARING
+      → Cambia a SHIPPED
+      → Publica "order-shipped" (Kafka)
+  → Busca shipments en SHIPPED (con tiempo suficiente)
+      → Cambia a DELIVERED
+      → Publica "order-delivered" (Kafka)
+```
+
+Se mantiene la opción de endpoints manuales para debug.
+
+### 5. Actualización de orden (vía Kafka)
+```
+shipment-service publica "order-shipped" / "order-delivered"
+     ↓
+order-service consume (por capa de servicio, sin REST)
+     ↓
+orderService.updateStatus(id, SHIPPED/DELIVERED)
+     ↓
+Cliente ve el cambio en la orden
+```
+
+> **Nota sobre comunicación**:
+> - **order ↔ shipment**: solo Kafka (eventos asíncronos)
+> - **order ↔ products**: solo REST (síncrono, validación inmediata de productos)
+> - **shipment ↔ user**: solo REST (síncrono, obtener dirección con API Key interna)
+
+### Diagrama de secuencia completo
+```
+order-service                  shipment-service               user-service
+     │                              │                              │
+     │  PUT /status → PAID          │                              │
+     │  publica "order-paid"        │                              │
+     │ ──────────────────────────►  │                              │
+     │                              │  GET /address/:customerId    │
+     │                              │ ──────────────────────────►  │
+     │                              │ ◄──────────────────────────  │
+     │                              │                              │
+     │                              │  Crea Shipment PREPARING     │
+     │                              │                              │
+     │                              │  ⏰ Cron 3min                │
+     │                              │  PREPARING → SHIPPED         │
+     │                              │                              │
+     │  publica "order-shipped"     │                              │
+     │ ◄──────────────────────────  │                              │
+     │                              │                              │
+     │  Actualiza orden → SHIPPED   │                              │
+     │                              │                              │
+     │                              │  ⏰ Cron (siguiente)         │
+     │                              │  SHIPPED → DELIVERED         │
+     │                              │                              │
+     │  publica "order-delivered"   │                              │
+     │ ◄──────────────────────────  │                              │
+     │                              │                              │
+     │  Actualiza orden → DELIVERED │                              │
+```
+
+---
+
+## Eventos del sistema
 
 | Evento | Topic | Producer | Consumer | Estado |
 |---|---|---|---|---|
-| `OrderPaid` | `order-paid` | order-service | shipment-service | ✅ Producer implementado |
+| `OrderPaid` | `order-paid` | order-service | shipment-service | ✅ Producer OK / Consumer ⏳ |
 | `OrderShipped` | `order-shipped` | shipment-service | order-service | ⏳ Pendiente |
+| `OrderDelivered` | `order-delivered` | shipment-service | order-service | ⏳ Pendiente |
 
 ---
 
-## 🔐 Autenticación (JWT)
+## Autenticación
 
-Todos los microservicios comparten el mismo `JWT_SECRET`. user-service genera los tokens, el resto los valida.
-
+### JWT (para usuarios)
 ```
-Frontend → POST /api/auth/login { email, password }
-                ↓
-         user-service valida credenciales
-                ↓
-         Genera JWT con payload: { sub: userId, name, email }
-                ↓
-         Devuelve { token }
-
+POST /api/auth/login → { token }
 → Cada request lleva: Authorization: Bearer <token>
-→ Cada microservicio valida el token localmente (sin llamar a user-service)
-→ Solo user-service puede generar tokens (register/login)
+→ user-service genera, el resto valida localmente con JWT_SECRET compartido
+```
+
+### API Key (para comunicación interna entre micros)
+```
+X-Middleware-ApiKey: idApp1237897key
+X-Middleware-DeviceId: idDevice321567Device
+→ Se valida en cada endpoint interno (ej: GET /api/address/:customerId)
 ```
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
-### Backend
-- **Java** + Spring Boot (product-service)
-- **Kotlin** + Spring Boot (shipment-service)
-- **Node.js** + Express + TypeScript (order-service, user-service)
-
-### Mensajería
-- **Apache Kafka** (eventos asíncronos)
-
-### Base de datos (una por servicio)
-- PostgreSQL
-
-### Infraestructura
-- Docker
+| Componente | Tecnología |
+|---|---|
+| Lenguajes | Java 21, Kotlin 2.2.21, TypeScript |
+| Frameworks | Spring Boot 4.0.6 / 3.5.13, Express |
+| ORM | Spring Data JPA, Prisma |
+| Mensajería | Apache Kafka 4.3.0 (KRaft) |
+| BB.DD. | PostgreSQL (una por servicio) |
+| Infraestructura | Docker, Docker Compose |
+| Documentación | springdoc OpenAPI, Swagger |
 
 ---
 
-## 📂 Estructura del proyecto
+## Estructura del proyecto
 
-```bash
+```
 microservices-architecture-ecommerce-lab/
 │
-├── user-service/              # Node/Express + TypeScript
+├── user-service/              # Node/Express + TypeScript + Prisma
 ├── products-service/          # Java 21 + Spring Boot / Hexagonal
-├── order-service/             # Node/Express + TypeScript + Prisma + Kafka
-├── shipment/                  # Kotlin + Spring Boot 4.0.6 + Kafka (consumer pendiente)
-├── docker-compose.yml         # Kafka en modo KRaft (sin Zookeeper)
-├── AGENTS.md                  # Contexto para opencode
+├── order-service/             # Node/Express + TypeScript + Prisma + KafkaJS
+├── shipment-service/          # Kotlin + Spring Boot 4.0.6 + Kafka
+├── docker-compose.yml         # Kafka en modo KRaft
 └── README.md
 ```
 
@@ -151,57 +218,141 @@ Cada servicio tiene su propio README con detalles de implementación, endpoints 
 
 ---
 
-## 🧩 Roadmap
+## Plan de despliegue: K8s + ArgoCD (GitOps)
 
-### Fase 1: Microservicios Core (REST)
-- **product-service** ✅ Catálogo de productos, CRUD, FakeStore API, Swagger
-- **user-service** ✅ Registro y login con JWT
-- **order-service** ✅ Órdenes, estados, JWT, consumo de products via REST
+### Arquitectura objetivo
 
-### Fase 2: Integración Kafka (eventos)
-- **order-service** ✅ Produce `OrderPaid` cuando status → PAID
-- **shipment-service** 🔧 Consumir `OrderPaid`, crear shipment, producir `OrderShipped`
-- Kafka + Zookeeper en Docker Compose ✅
+```
+GitHub (manifests YAML)
+        ↓
+      ArgoCD
+        ↓
+k3d Kubernetes cluster
+        ↓
+     Ingress
+        ↓
+API Gateway (Spring Cloud Gateway)
+        ↓
+  Microservicios:
+  - user-service (Node)
+  - order-service (Node)
+  - products-service (Java)
+  - shipment-service (Kotlin)
+        ↓
+  Kafka (KRaft) + PostgreSQL (una por servicio)
+```
 
-### Fase 3: Containerización
-- Dockerizar todos los servicios
-- Despliegue en Minikube
+### Regla de oro
 
-### Fase 4: Observabilidad
-- Prometheus + Grafana
-- Métricas con Actuator
+| Componente | Rol |
+|---|---|
+| **Kubernetes (k3d)** | Runtime — dónde corren los servicios |
+| **ArgoCD** | Despliegue automático — GitOps |
+| **CI (GitHub Actions / Jenkins)** | Build + test + Docker push (no toca deploy) |
 
-### Fase 5: CI/CD
-- GitHub Actions (build, test, push, deploy)
-
-### Fase 6: Frontend + API Gateway
-- React + API Gateway (Spring Cloud Gateway o K8s Ingress)
-
-### Fase 7: Notification Service
-- Nuevo micro que consume eventos de Kafka y notifica al cliente
+No se mezclan responsabilidades.
 
 ---
 
-## 🚀 Comandos
+### Fases
+
+#### 🥇 FASE 1 — Kubernetes base (k3d)
+- [ ] Levantar cluster k3d
+- [ ] Deploy manual de todos los servicios (YAMLs)
+- [ ] Services, Ingress, ConfigMaps, Secrets
+- [ ] Objetivo: sistema funcionando SIN automatización
+
+#### 🥈 FASE 2 — Infra interna en K8s
+- [ ] Kafka en Kubernetes
+- [ ] PostgreSQL (un pod por servicio)
+- [ ] Networking interno entre pods
+
+#### 🥉 FASE 3 — API Gateway
+- [ ] Spring Cloud Gateway como punto de entrada único
+- [ ] Routing hacia cada microservicio
+- [ ] Validación JWT centralizada
+- [ ] Headers comunes (API Key interna)
+- [ ] Control de tráfico
+
+#### 🧩 FASE 4 — Estabilización del cluster
+- [ ] Health checks
+- [ ] Readiness / Liveness probes
+- [ ] Config centralizada por environment
+
+#### 🥇 FASE 5 — ArgoCD (GitOps)
+- [ ] Instalar ArgoCD en el cluster
+- [ ] Conectar con repositorio Git de manifests
+- [ ] `git push` → ArgoCD detecta → cluster se actualiza solo
+
+#### 🥈 FASE 6 — CI (opcional)
+- [ ] GitHub Actions o Jenkins
+- [ ] Build + test + Docker push
+- [ ] No toca deploy (eso lo hace ArgoCD)
+
+---
+
+## Estado del proyecto
+
+### Aplicación (microservicios)
+
+| Feature | Estado |
+|---|---|
+| Registro y login con JWT | ✅ |
+| CRUD de productos (FakeStore + DB) | ✅ |
+| Órdenes de compra con estados | ✅ |
+| Productor Kafka (OrderPaid) | ✅ |
+| Address client (shipment → user-service) | ✅ |
+| API Key interna entre micros | ✅ |
+| Arquitectura hexagonal (shipment) | ✅ |
+| Address (persistencia local en shipment) | ✅ |
+| Shipment.id tipo UUID (misma orden) | ✅ |
+| Consumer Kafka (crear shipment) | ⏳ Pendiente |
+| Cron scheduler (PREPARING → SHIPPED → DELIVERED) | ⏳ Pendiente |
+| Productor Kafka (OrderShipped / OrderDelivered) | ⏳ Pendiente |
+| Consumer en order-service (actualizar estado) | ⏳ Pendiente |
+| API Key en products-service (order → products) | 📝 Planificado |
+
+### Infraestructura (K8s + ArgoCD)
+
+| Fase | Estado |
+|---|---|
+| FASE 1 — Kubernetes base (k3d) | ⏳ Pendiente |
+| FASE 2 — Infra interna (Kafka + DBs) | ⏳ Pendiente |
+| FASE 3 — API Gateway | ⏳ Pendiente |
+| FASE 4 — Estabilización del cluster | ⏳ Pendiente |
+| FASE 5 — ArgoCD (GitOps) | ⏳ Pendiente |
+| FASE 6 — CI (opcional) | ⏳ Pendiente |
+
+---
+
+## Comandos (desarrollo local)
 
 ```bash
 # Iniciar Kafka
 docker compose up -d
 
-# Order service (dev)
+# Order service
 cd order-service && npm run dev
 
+# User service
+cd user-service && npm run dev
+
 # Shipment service
-cd shipment && ./mvnw spring-boot:run
+cd shipment-service && ./mvnw spring-boot:run
+
+# Products service
+cd products-service && ./mvnw spring-boot:run
 ```
 
 ---
 
-🎯 **Objetivo del proyecto**
+## Objetivo
 
-Este proyecto no busca solo funcionar, sino demostrar:
+Este proyecto no busca solo funcionar, sino demostrar diseño de sistemas reales con:
 
-- Diseño de sistemas reales con comunicación síncrona y asíncrona
-- Buenas prácticas de backend
-- Capacidad de trabajar con múltiples tecnologías (Java, Kotlin, Node, TypeScript)
-- Pensamiento arquitectónico
+- Comunicación síncrona (REST) y asíncrona (Kafka)
+- Múltiples lenguajes y frameworks (Java, Kotlin, Node, TypeScript)
+- Arquitectura hexagonal en microservicios
+- API Key interna para comunicación service-to-service
+- Despliegue automatizado con GitOps (K8s + ArgoCD)
+- Separación clara entre aplicación, infraestructura y automatización
