@@ -23,7 +23,7 @@ class ShipmentEntity(
 
     var trackingCode: String? = null,
 
-    @OneToOne(cascade = [CascadeType.ALL])
+    @ManyToOne(cascade = [CascadeType.ALL])
     @JoinColumn(name = "address_id")
     var address: AddressEntity? = null,
 

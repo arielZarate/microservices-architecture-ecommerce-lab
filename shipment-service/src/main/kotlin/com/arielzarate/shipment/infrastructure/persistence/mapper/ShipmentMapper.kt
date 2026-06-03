@@ -60,6 +60,8 @@ class ShipmentMapper {
 
     private fun toAddressDomain(entity: AddressEntity): Address {
         return Address(
+            id = entity.id,
+            customerId = entity.customerId,
             address = entity.address,
             neighborhood = entity.neighborhood,
             city = entity.city,
@@ -70,6 +72,8 @@ class ShipmentMapper {
 
     private fun toAddressEntity(domain: Address): AddressEntity {
         return AddressEntity(
+            id = domain.id,
+            customerId = domain.customerId,
             address = domain.address,
             neighborhood = domain.neighborhood,
             city = domain.city,
