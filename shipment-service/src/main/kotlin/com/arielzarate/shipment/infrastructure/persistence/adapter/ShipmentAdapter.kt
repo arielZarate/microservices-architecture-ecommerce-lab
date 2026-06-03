@@ -6,6 +6,7 @@ import com.arielzarate.shipment.infrastructure.persistence.entity.ShipmentEntity
 import com.arielzarate.shipment.infrastructure.persistence.mapper.ShipmentMapper
 import com.arielzarate.shipment.infrastructure.persistence.repository.ShipmentRepository
 import org.springframework.stereotype.Component
+import java.util.UUID
 
 @Component
 class ShipmentAdapter(
@@ -17,7 +18,7 @@ class ShipmentAdapter(
     }
 
     override fun findByOrderId(orderId: String): Shipment? {
-        return repository.findById(orderId).map (mapper::toDomain).orElse(null)
+        return repository.findById(UUID.fromString(orderId)).map (mapper::toDomain).orElse(null)
     }
 
     override fun save(shipment: Shipment): Shipment {

@@ -9,13 +9,14 @@ import com.arielzarate.shipment.infrastructure.persistence.entity.ShipmentEntity
 import com.arielzarate.shipment.infrastructure.persistence.entity.ShipmentItemEntity
 import com.arielzarate.shipment.infrastructure.persistence.entity.ShipmentStatusEntity
 import org.springframework.stereotype.Component
+import java.util.UUID
 
 @Component
 class ShipmentMapper {
 
     fun toDomain(entity: ShipmentEntity): Shipment {
         return Shipment(
-            id = entity.id,
+            id = entity.id.toString(),
             customerId = entity.customerId,
             customerName = entity.customerName,
             status = ShipmentStatus.valueOf(entity.status.name),
@@ -27,7 +28,7 @@ class ShipmentMapper {
 
     fun toEntity(domain: Shipment): ShipmentEntity {
         return ShipmentEntity(
-            id = domain.id,
+            id = UUID.fromString(domain.id),
             customerId = domain.customerId,
             customerName = domain.customerName,
             status = ShipmentStatusEntity.valueOf(domain.status.name),

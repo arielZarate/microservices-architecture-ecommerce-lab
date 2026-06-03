@@ -2,13 +2,14 @@ package com.arielzarate.shipment.infrastructure.persistence.entity
 
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Entity
 @Table(name = "shipment")
 class ShipmentEntity(
     @Id
     @Column(columnDefinition = "UUID")
-    val id: String,
+    val id: UUID,
 
     @Column(nullable = false)
     var customerId: Long,
