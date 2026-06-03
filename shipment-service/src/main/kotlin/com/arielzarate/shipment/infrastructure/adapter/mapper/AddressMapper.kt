@@ -11,6 +11,7 @@ class AddressMapper {
     companion object {
         fun mapToDomainOfClient(obj: AddressResponse): Address {
             return Address(
+                customerId = obj.customerId,
                 address = obj.address,
                 neighborhood = obj.neighborhood,
                 city = obj.city,
@@ -22,6 +23,7 @@ class AddressMapper {
         fun mapToDomain(obj: AddressEntity): Address {
             return Address(
                 id = obj.id,
+                customerId = obj.customerId,
                 address = obj.address,
                 neighborhood = obj.neighborhood,
                 city = obj.city,
@@ -33,6 +35,7 @@ class AddressMapper {
         fun mapToEntity(domain: Address): AddressEntity {
             return AddressEntity(
                 id = domain.id,
+                customerId = domain.customerId,
                 address = domain.address,
                 neighborhood = domain.neighborhood,
                 city = domain.city,

@@ -10,6 +10,12 @@ class ShipmentEntity(
     @Column(columnDefinition = "UUID")
     val id: String,
 
+    @Column(nullable = false)
+    var customerId: Long,
+
+    @Column(nullable = false)
+    var customerName: String,
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var status: ShipmentStatusEntity,
@@ -18,14 +24,16 @@ class ShipmentEntity(
 
     @OneToOne(cascade = [CascadeType.ALL])
     @JoinColumn(name = "address_id")
-    var address: AddressEntity? = null
+    var address: AddressEntity? = null,
+
+    @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
+    @JoinColumn(name = "shipment_id")
+    var items: MutableList<ShipmentItemEntity> = mutableListOf()
 ) {
     @Column(updatable = false)
     var createdAt: LocalDateTime? = null
 
-
     var updatedAt: LocalDateTime? = null
-
 
     var deletedAt: LocalDateTime? = null
 

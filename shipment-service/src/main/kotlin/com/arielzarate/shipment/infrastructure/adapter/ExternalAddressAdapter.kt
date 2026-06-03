@@ -15,4 +15,5 @@ class ExternalAddressAdapter(
         val response = addressClient.getAddressByCustomerId(id)
         return AddressMapper.mapToDomainOfClient(response)
     }
+
 }
