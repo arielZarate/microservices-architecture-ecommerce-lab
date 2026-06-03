@@ -9,7 +9,7 @@ class AddressEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
-
+    var customerId:Long=0, //new atrribute
     var address: String? = null,
     var neighborhood: String? = null,
     var city: String? = null,

@@ -2,13 +2,20 @@ package com.arielzarate.shipment.infrastructure.persistence.entity
 
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Entity
 @Table(name = "shipment")
 class ShipmentEntity(
     @Id
     @Column(columnDefinition = "UUID")
-    val id: String,
+    val id: UUID,
+
+    @Column(nullable = false)
+    var customerId: Long,
+
+    @Column(nullable = false)
+    var customerName: String,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -16,16 +23,18 @@ class ShipmentEntity(
 
     var trackingCode: String? = null,
 
-    @OneToOne(cascade = [CascadeType.ALL])
+    @ManyToOne(cascade = [CascadeType.ALL])
     @JoinColumn(name = "address_id")
-    var address: AddressEntity? = null
+    var address: AddressEntity? = null,
+
+    @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
+    @JoinColumn(name = "shipment_id")
+    var items: MutableList<ShipmentItemEntity> = mutableListOf()
 ) {
     @Column(updatable = false)
     var createdAt: LocalDateTime? = null
 
-
     var updatedAt: LocalDateTime? = null
-
 
     var deletedAt: LocalDateTime? = null
 

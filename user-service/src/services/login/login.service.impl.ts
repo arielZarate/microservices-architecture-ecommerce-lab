@@ -21,6 +21,8 @@ class LoginServiceImpl implements LoginService {
 
     const token = generateToken({
       id: user.getId()!,
+      name: user.getName(),
+      lastName: user.getLastName(),
       email: user.getEmail(),
       role: user.getRole(),
     });

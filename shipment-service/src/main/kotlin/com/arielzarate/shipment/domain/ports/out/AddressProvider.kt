@@ -4,4 +4,5 @@ import com.arielzarate.shipment.domain.model.Address
 
 interface AddressProvider {
     fun saveAddress(address: Address): Address
+    fun findByCustomerId(customerId: Long): Address?
 }

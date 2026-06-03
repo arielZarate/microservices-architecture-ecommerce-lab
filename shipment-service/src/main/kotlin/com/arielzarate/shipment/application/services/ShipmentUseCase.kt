@@ -1,7 +1,7 @@
 package com.arielzarate.shipment.application.services
 
-import com.arielzarate.shipment.domain.model.Address
 import com.arielzarate.shipment.domain.model.Shipment
+import com.arielzarate.shipment.domain.model.ShipmentItem
 import com.arielzarate.shipment.domain.model.ShipmentStatus
 import com.arielzarate.shipment.domain.ports.`in`.ShipmentService
 import com.arielzarate.shipment.domain.ports.out.ShipmentProvider
@@ -23,21 +23,19 @@ class ShipmentUseCase(
         return provider.findByOrderId(orderId)
             ?: throw ShipmentErrorException(
                 ShipmentError.notFoundError("Shipment not found for order: $orderId")
-            )
+            ) as Throwable
     }
 
-    override fun createShipment(orderId: String): Shipment {
-
-        //data dee kafka tengo que tener la data con el customerId
-        val customerId = 1245L
-        //buscamos o valiamos la direccion
-
+    override fun createShipment(orderId: String, customerId: Long, customerName: String, items: List<ShipmentItem>): Shipment {
         val address = addressUseCase.getAddressByUserId(customerId)
 
         val shipment = Shipment(
             id = orderId,
+            customerId = customerId,
+            customerName = customerName,
             status = ShipmentStatus.PREPARING,
-            address = address
+            address = address,
+            items = items
         )
         return provider.save(shipment)
     }
