@@ -301,9 +301,10 @@ interface AddressResponseDTO {
 
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET | `/api/address/:customerId` | ❌ | Obtener dirección por ID de cliente (solo address, neighborhood, city, postalCode, country) |
+| GET | `/api/address/:customerId` | ✅ API Key (validateHeader) | Obtener dirección por ID de cliente (solo address, neighborhood, city, postalCode, country) |
 
-> El endpoint de address es **interno** para que otros microservicios (shipment-service, order-service) consulten la dirección de un cliente sin exponer datos sensibles como password o email.
+> El endpoint de address es **interno** y requiere headers `X-Middleware-ApiKey` + `X-Middleware-DeviceId`.
+> Usado por shipment-service para obtener la dirección al crear un envío.
 
 ## Schema Prisma
 
@@ -359,9 +360,10 @@ async findAddressByCustomerId(customerId: number): Promise<AddressPrismaResponse
 ```json
 {
   "id": 1,
-  "name": "Ariel Zarate",
+  "name": "Ariel",
+  "lastName": "Zarate",
   "email": "ariel@test.com",
-  "role": "admin"
+  "role": "USER"
 }
 ```
 
@@ -370,6 +372,9 @@ async findAddressByCustomerId(customerId: number): Promise<AddressPrismaResponse
 - **Algoritmo**: HS256 (por defecto en jsonwebtoken)
 - **Expiración**: 24 horas
 - **Secret**: `JWT_SECRET` en `.env`
+- **Incluye**: `id`, `name`, `lastName`, `email`, `role`
+
+> **Nota:** El campo `lastName` se agregó para que order-service pueda componer el `customerName` como "Ariel Zarate".
 
 ### Compatibilidad
 
@@ -387,7 +392,7 @@ El token generado por user-service es consumido por otros microservicios del eco
 ## Variables de Entorno (.env)
 
 ```
-PORT=3000
+PORT=4000
 DATABASE_URL="postgresql://postgres:1111@localhost:5432/users_management"
 DB_HOST="localhost"
 DB_PORT="5432"
@@ -395,6 +400,10 @@ DB_USER="postgres"
 DB_PASSWORD="1111"
 DB_NAME="users_management"
 JWT_SECRET="sapee2026"
+
+# API Key para comunicación interna entre micros
+API_KEY="idApp1237897key"
+DEVICE_ID="idDevice321567Device"
 ```
 
 ---

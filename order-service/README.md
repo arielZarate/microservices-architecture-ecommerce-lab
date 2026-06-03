@@ -432,9 +432,10 @@ PENDING ──► PAID ──► PREPARING ──► SHIPPED
 | GET | `/api/order/my` | ✅ JWT | Órdenes del usuario autenticado |
 | GET | `/api/order/:id` | ✅ JWT | Obtener orden por ID |
 | POST | `/api/order` | ✅ JWT | Crear nueva orden |
-| PUT | `/api/order/:id/status` | ❌ | Actualizar estado (uso interno entre micros) |
+| PUT | `/api/order/:id/status` | ✅ API Key | Actualizar estado (uso interno entre micros) |
 
-> **Nota:** `PUT /api/order/:id/status` no requiere JWT porque es llamado internamente por otros microservicios.
+> **Nota:** `PUT /api/order/:id/status` usa middleware `validateHeader` con API Key interna, no JWT.
+> Headers requeridas: `X-Middleware-ApiKey` + `X-Middleware-DeviceId`.
 > Cuando se actualiza a `PAID`, se publica automáticamente el evento Kafka `"order-paid"`.
 
 ---
@@ -485,11 +486,14 @@ Payload del token:
 ```json
 {
   "id": 1,
-  "name": "Ariel Zarate",
+  "name": "Ariel",
+  "lastName": "Zarate",
   "email": "ariel@test.com",
   "role": "admin"
 }
 ```
+
+**`customerName` en la orden** se compone como `name + lastName` (ej: "Ariel Zarate").
 
 ---
 
@@ -544,6 +548,9 @@ docker compose ps
 - ✅ **Kafka producer — publica "order-paid" cuando status → PAID**
 - ✅ **Conexión lazy del producer**
 - ✅ **Graceful degradation si Kafka no está disponible**
+- ✅ **userContext con lastName** (para fullname del cliente)
+- ✅ **validateHeader middleware** para endpoints internos (API Key)
+- ✅ **customerName como fullname** (name + lastName)
 
 ---
 

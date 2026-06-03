@@ -318,6 +318,15 @@ public abstract class BaseEntity {
 }
 ```
 
+## API Key interna (pendiente)
+
+Actualmente los endpoints de products-service **no tienen validación** de API Key.  
+Esto es necesario porque order-service consume `GET /api/products/{id}` para validar productos al crear órdenes.
+
+**Pendiente:** Implementar middleware/interceptor que valide `X-Middleware-ApiKey` y `X-Middleware-DeviceId`.
+
+---
+
 ## Endpoints
 
 ### Productos

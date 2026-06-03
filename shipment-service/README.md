@@ -37,8 +37,8 @@ interfaces/
 
 | Tipo | Tecnología | Hacia | Detalle |
 |---|---|---|---|
-| REST (client) | WebClient | shipment → user-service | Obtiene dirección del cliente (`/api/address/{customerId}`) |
-| Kafka (consumer) | ⏳ Pendiente | order-service → shipment | Escuchará `OrderPaid` para iniciar envío |
+| REST (client) | WebClient | shipment → user-service | Obtiene dirección del cliente (`/api/address/{customerId}`) con API Key |
+| Kafka (consumer) | Spring Kafka | order-service → shipment | Consume `OrderPaid` para iniciar envío |
 | Kafka (producer) | ⏳ Pendiente | shipment → order-service | Producirá `OrderShipped` cuando el envío se complete |
 
 ## Endpoints REST
@@ -63,19 +63,22 @@ ShipmentUseCase.createShipment(orderId, customerId)
   → ShipmentProvider.save(shipment)
 ```
 
-La dirección se persiste localmente como tabla `address` con relación `@OneToOne` al shipment.
+La dirección se persiste localmente como tabla `address`. La relación con `shipment` es `@ManyToOne` porque un mismo cliente tiene una sola dirección que puede estar en múltiples pedidos.
 
 ## Estado actual del código
 
 | Feature | Estado |
 |---|---|
 | CRUD Shipment (REST GET) | ✅ Implementado |
-| Address client (WebClient → user-service) | ✅ Implementado |
+| Address client (WebClient → user-service con API Key) | ✅ Implementado |
 | Domain model (Shipment, Address, Status) | ✅ Implementado |
 | Arquitectura hexagonal | ✅ Implementada |
 | Persistencia JPA (PostgreSQL) | ✅ Implementada |
 | Error handling global (RFC 7807) | ✅ Implementado |
-| Kafka consumer (OrderPaid → crear shipment) | ⏳ Pendiente |
+| **Kafka consumer (OrderPaid → crear shipment)** | ✅ **Funcionando** |
+| Address cache local (evita duplicados por customerId) | ✅ Implementado |
+| Fix: AddressMapper con id + customerId | ✅ Fix aplicado |
+| Relación Shipment-Address @ManyToOne | ✅ Fix aplicado |
 | Kafka producer (OrderShipped) | ⏳ Pendiente |
 | Scheduler (PREPARING → SHIPPED automático) | ⏳ Pendiente |
 | REST PUT status a order-service | ⏳ Pendiente |
@@ -85,5 +88,5 @@ La dirección se persiste localmente como tabla `address` con relación `@OneToO
 - **Kotlin 2.2.21** + **Spring Boot 4.0.6**
 - **Spring Data JPA** + PostgreSQL
 - **WebClient** (REST hacia user-service)
-- **Spring Kafka** (dependencia incluida, consumer pendiente)
+- **Spring Kafka** (consumer activo: topic `order-paid`)
 - **springdoc OpenAPI** (Swagger UI en `/api/swagger-ui.html`)

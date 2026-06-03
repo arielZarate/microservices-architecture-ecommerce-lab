@@ -5,8 +5,8 @@ import OrderServiceImpl  from '../services/order/order.service.impl.js';
 import ProductClientService from '../services/product/product.client.service.js';
 import OrderRepositoryImpl from '../persistence/order/order.repository.impl.js';
 import middleware_security from '../middlewares/token.interceptor.js';
-import KafkaInstance from '../kafka/index.js';
 import kafkaInstance from '../kafka/index.js';
+import validateHeader from '../middlewares/validaterHeader.js';
 
 const url = process.env.PRODUCT_SERVICE_URL || 'http://localhost:8080/api';
 
@@ -176,6 +176,6 @@ router.post('/' ,middleware_security,orderController.createOrder.bind(orderContr
  *       404:
  *         description: Orden no encontrada
  */
-router.put('/:id/status',orderController.updateOrder.bind(orderController));
+router.put('/:id/status',validateHeader,orderController.updateOrder.bind(orderController));
 
 export default router;
