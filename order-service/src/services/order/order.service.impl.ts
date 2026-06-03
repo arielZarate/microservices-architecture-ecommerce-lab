@@ -27,7 +27,7 @@ class OrderServiceImpl implements OrderService {
 
     // 2. Set customer data from context
     order.setCustomerId(user.id);
-    order.setCustomerName(user.name);
+    order.setCustomerName(user.name + ' ' + user.lastName);  //fullname
     order.setCustomerEmail(user.email);
   
 
@@ -136,7 +136,7 @@ class OrderServiceImpl implements OrderService {
 
   
       await this.kafkaProducer.publish('order-paid', event);
-      logger.info('KAFKA-EVENTS-> ORDER-PAID ... published');
+      logger.info('KAFKA-EVENTS-> ORDER-PAID ... published with customer: ' + orderSaved.getCustomerName());
     }
 
     return orderSaved;

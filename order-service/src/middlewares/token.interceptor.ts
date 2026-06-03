@@ -9,6 +9,7 @@ const  secretKey = process.env.JWT_SECRET
 interface UserDTO {
     id: number;
     name: string;
+    lastName: string;
     email: string;
     role: string;
 }   
