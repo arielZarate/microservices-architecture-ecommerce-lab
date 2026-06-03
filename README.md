@@ -47,7 +47,7 @@ La comunicación se divide en dos tipos:
 | **user-service** | Node.js / TypeScript | Express + Prisma | 4000 | REST (auth, address) |
 | **products-service** | Java 21 | Spring Boot 3.5.13 | 8080 | REST (catálogo) |
 | **order-service** | Node.js / TypeScript | Express + Prisma + KafkaJS | 3000 | REST + Kafka (produce OrderPaid) |
-| **shipment-service** | Kotlin | Spring Boot 4.0.6 | 8081 | Kafka (consume/produce) + REST |
+| **shipment-service** | Kotlin | Spring Boot 4.0.6 | 8081 | Kafka (consume desde order-paid) + REST |
 
 ---
 
@@ -75,7 +75,9 @@ Usuario → POST /api/order (con JWT)
 
 ### 2. Pago simulado
 ```
-Usuario → PUT /api/order/:id/status → PAID
+Usuario (o sistema interno) → PUT /api/order/:id/status → PAID
+  Headers: X-Middleware-ApiKey + X-Middleware-DeviceId
+  → order-service valida API Key (validateHeader)
   → order-service publica evento "order-paid" a Kafka
 ```
 
@@ -162,8 +164,8 @@ order-service                  shipment-service               user-service
 ## Eventos del sistema
 
 | Evento | Topic | Producer | Consumer | Estado |
-|---|---|---|---|---|
-| `OrderPaid` | `order-paid` | order-service | shipment-service | ✅ Producer OK / Consumer ⏳ |
+|---|---|---|---|---|---|
+| `OrderPaid` | `order-paid` | order-service | shipment-service | ✅ Funcionando |
 | `OrderShipped` | `order-shipped` | shipment-service | order-service | ⏳ Pendiente |
 | `OrderDelivered` | `order-delivered` | shipment-service | order-service | ⏳ Pendiente |
 
@@ -182,7 +184,9 @@ POST /api/auth/login → { token }
 ```
 X-Middleware-ApiKey: idApp1237897key
 X-Middleware-DeviceId: idDevice321567Device
-→ Se valida en cada endpoint interno (ej: GET /api/address/:customerId)
+→ Se valida en endpoints internos:
+  - GET /api/address/:customerId (user-service)
+  - PUT /api/order/:id/status (order-service)
 ```
 
 ---
@@ -306,7 +310,12 @@ No se mezclan responsabilidades.
 | Arquitectura hexagonal (shipment) | ✅ |
 | Address (persistencia local en shipment) | ✅ |
 | Shipment.id tipo UUID (misma orden) | ✅ |
-| Consumer Kafka (crear shipment) | ⏳ Pendiente |
+| Consumer Kafka (crear shipment) | ✅ Funcionando |
+| Address cache local (evita duplicados) | ✅ Fix: id + customerId en mapper |
+| Relación Shipment-Address | ✅ Fix: @OneToOne → @ManyToOne |
+| API Key en PUT /:id/status (order-service) | ✅ validateHeader |
+| JWT incluye lastName | ✅ Fix en payload |
+| customerName como fullname (name + lastName) | ✅ Implementado |
 | Cron scheduler (PREPARING → SHIPPED → DELIVERED) | ⏳ Pendiente |
 | Productor Kafka (OrderShipped / OrderDelivered) | ⏳ Pendiente |
 | Consumer en order-service (actualizar estado) | ⏳ Pendiente |
