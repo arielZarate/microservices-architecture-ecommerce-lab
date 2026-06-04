@@ -77,6 +77,18 @@
 			<artifactId>jackson-module-kotlin</artifactId>
 		</dependency>
 
+		<!-- ShedLock for cron locking -->
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId>
+			<artifactId>shedlock-spring</artifactId>
+			<version>5.16.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId>
+			<artifactId>shedlock-provider-jdbc</artifactId>
+			<version>5.16.0</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>

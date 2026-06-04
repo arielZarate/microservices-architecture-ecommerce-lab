@@ -64,6 +64,16 @@ external:
   api-key: idApp1237897key
   device-id: idDevice321567Device
 
+
+# scheduled
+scheduled:
+  preparing-to-shipped:
+    period: "0 */1 * * * *"
+  shipped-to-delivered:
+    period: "30 */2 * * * *"
+
+
+
 #Monitoring - metrics
 management:
   endpoints:
