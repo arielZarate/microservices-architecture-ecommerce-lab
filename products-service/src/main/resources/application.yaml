@@ -30,6 +30,16 @@ springdoc:
     path: /swagger-ui.html
 
 
+# Api key
+external:
+  api-key: idApp1237897key
+  device-id: idDevice321567Device
+
+# JWT
+jwt:
+  secret: sapee2026
+
+
 #Monitoring - metrics
 management:
   endpoints:
