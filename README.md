@@ -187,6 +187,7 @@ X-Middleware-DeviceId: idDevice321567Device
 → Se valida en endpoints internos:
   - GET /api/address/:customerId (user-service)
   - PUT /api/order/:id/status (order-service)
+  - POST/PUT/DELETE /api/products/* (products-service)
 ```
 
 ---
@@ -316,10 +317,11 @@ No se mezclan responsabilidades.
 | API Key en PUT /:id/status (order-service) | ✅ validateHeader |
 | JWT incluye lastName | ✅ Fix en payload |
 | customerName como fullname (name + lastName) | ✅ Implementado |
+| JWT en products-service | ✅ Implementado |
+| API Key en products-service (POST/PUT/DELETE) | ✅ JWT + API Key |
 | Cron scheduler (PREPARING → SHIPPED → DELIVERED) | ⏳ Pendiente |
 | Productor Kafka (OrderShipped / OrderDelivered) | ⏳ Pendiente |
 | Consumer en order-service (actualizar estado) | ⏳ Pendiente |
-| API Key en products-service (order → products) | 📝 Planificado |
 
 ### Infraestructura (K8s + ArgoCD)
 
