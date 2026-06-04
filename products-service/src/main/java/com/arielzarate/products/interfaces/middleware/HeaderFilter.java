@@ -50,7 +50,6 @@ public class HeaderFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             if (jwtUtil.isValid(token)) {
-                log.info("JWT authentication successful - access granted");
                 filterChain.doFilter(request, response);
                 return;
             }

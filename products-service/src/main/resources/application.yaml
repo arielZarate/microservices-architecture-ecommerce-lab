@@ -37,7 +37,7 @@ external:
 
 # JWT
 jwt:
-  secret: sapee2026
+  secret: sapee2026superSecretKeyForJwt256bits!!
 
 
 #Monitoring - metrics

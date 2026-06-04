@@ -318,12 +318,48 @@ public abstract class BaseEntity {
 }
 ```
 
-## API Key interna (pendiente)
+## Seguridad (JWT + API Key)
 
-Actualmente los endpoints de products-service **no tienen validación** de API Key.  
-Esto es necesario porque order-service consume `GET /api/products/{id}` para validar productos al crear órdenes.
+Products-service implementa **doble autenticación** para endpoints de escritura:
 
-**Pendiente:** Implementar middleware/interceptor que valide `X-Middleware-ApiKey` y `X-Middleware-DeviceId`.
+### Flujo de validación
+
+```
+Request → ¿GET público? → sí → pase
+         ↓ no
+         ¿JWT (Bearer token) válido? → sí → pase
+         ↓ no
+         ¿API Key + DeviceId válidos? → sí → pase
+         ↓ no
+         401 Unauthorized
+```
+
+### Endpoints públicos (GET)
+| Ruta | Método |
+|---|---|
+| `/api/products` | GET |
+| `/api/products/{id}` | GET |
+| `/api/category` | GET |
+| `/api/category/{id}` | GET |
+
+### Endpoints protegidos (requieren JWT o API Key)
+| Ruta | Métodos |
+|---|---|
+| `/api/products` | POST |
+| `/api/products/{id}` | PUT, DELETE |
+| `/api/products/{id}/activate` | POST |
+| `/api/category` | POST |
+| `/api/category/{id}` | PUT, DELETE |
+| `/api/category/{id}/activate` | POST |
+
+### Cabeceras aceptadas
+- **JWT**: `Authorization: Bearer <token>` (usuarios frontend)
+- **API Key interna**: `X-Middleware-ApiKey` + `X-Middleware-DeviceId` (comunicación entre microservicios)
+
+### Implementación
+- `interfaces/middleware/HeaderFilter.java`: OncePerRequestFilter con lógica JWT → API Key → 401
+- `interfaces/middleware/security/JwtUtil.java`: Validación de tokens JWT con jjwt 0.12.6
+- Dependencia: `io.jsonwebtoken:jjwt:0.12.6`
 
 ---
 
