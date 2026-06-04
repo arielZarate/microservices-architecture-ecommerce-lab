@@ -25,8 +25,8 @@ async getProductById(productId: number, config?: RequestConfig): Promise<Product
     const axiosConfig: Record<string, unknown> = {
       timeout: config?.timeout ?? this.defaultTimeout,
       headers: {
-        'X-Middleware-ApiKey': this.apiKey,
-        'X-Middleware-DeviceId': this.deviceId,
+      //  'X-Middleware-ApiKey': this.apiKey,
+      //  'X-Middleware-DeviceId': this.deviceId,
         ...config?.headers,
       },
     };
