@@ -399,7 +399,7 @@ DB_PORT="5432"
 DB_USER="postgres"
 DB_PASSWORD="1111"
 DB_NAME="users_management"
-JWT_SECRET="sapee2026"
+JWT_SECRET="<your-secret>"
 
 # API Key para comunicación interna entre micros
 API_KEY="idApp1237897key"
