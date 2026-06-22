@@ -28,3 +28,12 @@ class ShipmentStatusScheduled(
         log.info("Finished scheduled SHIPPED → DELIVERED ")
     }
 }
+
+
+
+
+/***
+ *
+ * CRON: EXECUTED TWO PROCESS
+ *
+ * */

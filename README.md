@@ -367,3 +367,133 @@ Este proyecto no busca solo funcionar, sino demostrar diseño de sistemas reales
 - API Key interna para comunicación service-to-service
 - Despliegue automatizado con GitOps (K8s + ArgoCD)
 - Separación clara entre aplicación, infraestructura y automatización
+
+---
+
+## Análisis Arquitectónico (2026-06-04)
+
+### ✅ Lo que está bien
+
+**1. Poliglotismo justificado**
+TypeScript para servicios con lógica de negocio liviana y mucha E/S (user, order). JVM (Kotlin/Java) para servicios con lógica pesada y concurrencia (shipment, products). La decisión es coherente.
+
+**2. Arquitectura hexagonal real en shipment y products**
+Ambos tienen separación clara `domain/ports` → `application/services` → `infrastructure/adapters` → `interfaces/rest`. Los puertos (interfaces) están bien definidos, las dependencias apuntan hacia adentro. Esto es hexagonal de verdad, no solo carpetas lindas.
+
+**3. Database-per-service pattern**
+Cada servicio tiene su propia base de datos PostgreSQL. Sin shared schemas ni acoplamiento de datos.
+
+**4. Comunicación interna con API Key consistente**
+`X-Middleware-ApiKey` + `X-Middleware-DeviceId` en todos los servicios. Mismo patrón, mismas credenciales. Simple y efectivo.
+
+**5. Dual auth en products-service (JWT → API Key fallback)**
+El `HeaderFilter` intenta JWT primero, cae a API Key si no hay token. Con GET públicos para productos. Pragmático y bien implementado.
+
+**6. ShedLock con crons independientes**
+Cada transición (PREPARING→SHIPPED, SHIPPED→DELIVERED) tiene su propio lock y su propio schedule. Los locks en DB persisten ante reinicios del servicio.
+
+**7. Kafka event naming claro**
+`order-paid`, `order-shipped`, `order-delivered`. Nombres de dominio, no técnicos. Fáciles de追踪.
+
+---
+
+### ❌ Lo crítico
+
+**1. Spring Boot 4.0.6 (milestone) en shipment vs 3.5.13 en products**
+Spring Boot 4.0.x todavía está en milestone (no es GA). Esto puede traer problemas de compatibilidad con librerías y bugs no resueltos. Products en 3.5.13 (stable) está bien, pero shipment en 4.0.6 es riesgoso. **Unificar las versiones o justificar por qué se necesita una milestone.**
+
+**2. Testing: prácticamente no existe**
+- `user-service`: 2 tests con Vitest ✅
+- `order-service`: **cero tests** ❌
+- `shipment-service`: 1 test de contexto nomás ❌
+- `products-service`: 1 test de contexto nomás ❌
+
+~5000 líneas de código y coverage casi nulo. **Esto es deuda técnica crítica** porque cualquier refactor rompe cosas sin que te enteres. Mínimo: tests unitarios de dominio y tests de integración de repositorios.
+
+**3. Missing consumer en order-service**
+Se produce `order-shipped` y `order-delivered` desde shipment, pero **order-service no los consume**. El flujo Kafka está a medio hacer. La orden nunca se entera de que su shipment cambió de estado.
+
+**4. Sin schema registry ni contractos para Kafka**
+Los eventos Kafka son `Map<String, Any>` en shipment y objetos tipados en order-service. No hay un esquema compartido (Avro/Protobuf/JSON Schema). Si se cambia la estructura del evento, **no hay forma de saber que se rompió el otro servicio** hasta que explota en runtime.
+
+**5. Typos en nombres de archivos y packages**
+- `user-service/src/routes/adddress.route.ts` (triple d)
+- `user-service/src/middlewares/validaterHeader.ts` (validator ≠ validater)
+- `products-service/.../infraestructure/` (infrastructure ≠ infraestructure)
+
+Hablan de falta de code review. Si hay typos en nombres, probablemente también los haya en lógica.
+
+**6. ddl-auto: update en producción**
+Tanto shipment como products usan `hibernate.ddl-auto: update`. Aceptable en desarrollo, pero **en producción puede borrar datos** o aplicar cambios de schema inesperados. Se necesita Flyway o Liquibase para migraciones versionadas.
+
+**7. Sin trazabilidad entre servicios**
+Los logs no tienen `traceId` o `correlationId` que crucen llamadas entre servicios. Si un pedido falla, no se puede seguir el rastro user-service → order-service → shipment-service → products-service.
+
+**8. Sin resiliencia**
+- No hay circuit breakers (Resilience4j, Opossum)
+- No hay retries configurables en llamadas HTTP (solo timeouts)
+- Si user-service cae, shipment-service no puede crear envíos y **no hay fallback**
+- Si Kafka cae, se pierden eventos (falta idempotencia/retry en productores)
+
+**9. Sin Dockerfiles para los servicios**
+El docker-compose tiene Kafka, pero los microservicios se ejecutan a pelo. Para un laboratorio de microservicios, **deberían estar containerizados**. No se puede levantar el stack completo con un solo comando.
+
+---
+
+### 🟡 Lo discutible
+
+**1. Arquitectura inconsistente entre servicios**
+Node.js usa **Layered** (capas), JVM usa **Hexagonal**. Los Node.js services tienen dominio anémico: `UserModel` y `OrderModel` son casi DTOs con getters, sin comportamiento real de negocio. En shipment/products el dominio sí tiene lógica. Es aceptable porque la complejidad es distinta, pero **hay que explicitarlo como decisión arquitectónica**.
+
+**2. MapStruct vs mapeo manual**
+Products usa MapStruct (genera código), shipment usa mapeo manual Kotlin. MapStruct es más verboso en setup pero más seguro. Manual es más simple pero propenso a errores (ya hubo un bug en `ShipmentMapper`).
+
+**3. Prisma migrations vs JPA ddl-auto**
+Node.js usa Prisma Migrations (versionadas, archivos SQL). JVM usa `ddl-auto: update` (automático, no versionado). Cada ecosistema trata la DB distinto. Para laboratorio está bien, pero **en producción el enfoque mixto es insostenible**.
+
+**4. Sin API versioning**
+Todo es `/api/...` sin `/api/v1/...`. Si mañana cambia la respuesta de un endpoint, se rompen todos los clientes.
+
+**5. JWT secret hardcodeado en `.env`**
+`JWT_SECRET=sapee2026superSecretKeyForJwt256bits!!` está en 3 archivos distintos. En un entorno real, esto va a un vault.
+
+---
+
+### 🔥 Prioridad de mejora
+
+1. **Testear**: tests unitarios del dominio en cada servicio
+2. **Terminar el consumer** en order-service para `order-shipped`/`order-delivered`
+3. **Unificar versión de Spring Boot** o dejar clara la justificación
+4. **Agregar correlationId** a los logs (middleware que genere UUID por request)
+5. **Corregir los typos** en nombres de archivos y packages
+6. **Migration strategy**: cambiar `ddl-auto: update` por Flyway en al menos un servicio
+7. **Dockerizar los servicios** para poder levantar el stack completo con un solo comando
+
+---
+
+### Progreso actualizado
+
+| Feature | Estado |
+|---|---|
+| Registro y login con JWT | ✅ |
+| CRUD de productos (FakeStore + DB) | ✅ |
+| Órdenes de compra con estados | ✅ |
+| Productor Kafka (OrderPaid) | ✅ |
+| Address client (shipment → user-service) | ✅ |
+| API Key interna entre micros | ✅ |
+| Arquitectura hexagonal (shipment + products) | ✅ |
+| Address persistencia local en shipment | ✅ |
+| Shipment.id tipo UUID (misma orden) | ✅ |
+| Consumer Kafka (crear shipment) | ✅ |
+| Address cache local (evita duplicados) | ✅ |
+| Relación Shipment-Address @ManyToOne | ✅ |
+| API Key en PUT /:id/status (order-service) | ✅ |
+| JWT incluye name + lastName | ✅ |
+| customerName como fullname | ✅ |
+| JWT + API Key en products-service | ✅ |
+| GET products/category públicos | ✅ |
+| **Cron scheduler PREPARING→SHIPPED→DELIVERED** | ✅ **Funcionando con ShedLock** |
+| **Productor Kafka (order-shipped / order-delivered)** | ✅ **Funcionando** |
+| **ShedLock reemplaza StepLock manual** | ✅ **Implementado** |
+| **Topics Kafka creados (kafka-init en compose)** | ✅ **order-shipped + order-delivered** |
+| Consumer en order-service (actualizar estado) | ⏳ Pendiente |
