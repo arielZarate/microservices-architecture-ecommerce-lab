@@ -26,7 +26,8 @@ class PreparingToShippedStep(
         shipments.forEach { shipment ->
             val updated = shipment.copy(status = ShipmentStatus.SHIPPED)
             provider.save(updated)
-            kafka.send("order-shipped", mapOf(
+            kafka.send("order-shipped",
+                mapOf(
                 "eventType" to "ORDER_SHIPPED",
                 "orderId" to updated.id,
                 "customerId" to updated.customerId,

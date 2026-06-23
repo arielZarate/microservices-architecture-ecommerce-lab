@@ -46,8 +46,8 @@ La comunicación se divide en dos tipos:
 |---|---|---|---|---|
 | **user-service** | Node.js / TypeScript | Express + Prisma | 4000 | REST (auth, address) |
 | **products-service** | Java 21 | Spring Boot 3.5.13 | 8080 | REST (catálogo) |
-| **order-service** | Node.js / TypeScript | Express + Prisma + KafkaJS | 3000 | REST + Kafka (produce OrderPaid) |
-| **shipment-service** | Kotlin | Spring Boot 4.0.6 | 8081 | Kafka (consume desde order-paid) + REST |
+| **order-service** | Node.js / TypeScript | Express + Prisma + KafkaJS | 3000 | REST + Kafka (produce `order-paid`, consume `order-preparing`/`order-shipped`/`order-delivered`) |
+| **shipment-service** | Kotlin | Spring Boot 4.0.6 | 8081 | Kafka (consume `order-paid`, produce `order-preparing`/`order-shipped`/`order-delivered`) + REST |
 
 ---
 
@@ -90,7 +90,19 @@ Kafka "order-paid" → shipment-service
   → Crea Shipment(id=orderId, status=PREPARING, address)
 ```
 
-### 4. Ciclo de entrega (shipment-service)
+### 4. Preparación del envío (shipment-service → order-service)
+Apenas se crea el shipment, shipment-service publica un evento para que order-service actualice su estado:
+
+```
+shipment-service crea Shipment(PREPARING)
+  → Publica "order-preparing" (Kafka)
+     ↓
+order-service consume "order-preparing"
+  → orderService.updateStatus(id, PREPARING)
+  → Cliente ve "PREPARING" en la orden
+```
+
+### 5. Ciclo de entrega (shipment-service)
 En un entorno real, shipment-service sería usado por un **equipo de logística/repartidores** que van actualizando el estado del envío a medida que el paquete avanza:
 
 ```
@@ -113,13 +125,13 @@ Para el laboratorio, se simula este comportamiento con un **cron cada 3 minutos*
 
 Se mantiene la opción de endpoints manuales para debug.
 
-### 5. Actualización de orden (vía Kafka)
+### 6. Actualización de orden (vía Kafka)
 ```
-shipment-service publica "order-shipped" / "order-delivered"
+shipment-service publica "order-preparing" / "order-shipped" / "order-delivered"
      ↓
 order-service consume (por capa de servicio, sin REST)
      ↓
-orderService.updateStatus(id, SHIPPED/DELIVERED)
+orderService.updateStatus(id, PREPARING / SHIPPED / DELIVERED)
      ↓
 Cliente ve el cambio en la orden
 ```
@@ -133,14 +145,19 @@ Cliente ve el cambio en la orden
 ```
 order-service                  shipment-service               user-service
      │                              │                              │
-     │  PUT /status → PAID          │                              │
-     │  publica "order-paid"        │                              │
-     │ ──────────────────────────►  │                              │
+     │  PUT /status → PAID          │
+     │  publica "order-paid"        │
+     │ ──────────────────────────►  │
      │                              │  GET /address/:customerId    │
      │                              │ ──────────────────────────►  │
      │                              │ ◄──────────────────────────  │
      │                              │                              │
      │                              │  Crea Shipment PREPARING     │
+     │                              │                              │
+     │  publica "order-preparing"   │                              │
+     │ ◄──────────────────────────  │                              │
+     │                              │                              │
+     │  Actualiza orden → PREPARING │                              │
      │                              │                              │
      │                              │  ⏰ Cron 3min                │
      │                              │  PREPARING → SHIPPED         │
@@ -164,10 +181,11 @@ order-service                  shipment-service               user-service
 ## Eventos del sistema
 
 | Evento | Topic | Producer | Consumer | Estado |
-|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 | `OrderPaid` | `order-paid` | order-service | shipment-service | ✅ Funcionando |
-| `OrderShipped` | `order-shipped` | shipment-service | order-service | ⏳ Pendiente |
-| `OrderDelivered` | `order-delivered` | shipment-service | order-service | ⏳ Pendiente |
+| `OrderPreparing` | `order-preparing` | shipment-service | order-service | ✅ Funcionando |
+| `OrderShipped` | `order-shipped` | shipment-service | order-service | ✅ Funcionando |
+| `OrderDelivered` | `order-delivered` | shipment-service | order-service | ✅ Funcionando |
 
 ---
 
@@ -321,7 +339,8 @@ No se mezclan responsabilidades.
 | API Key en products-service (POST/PUT/DELETE) | ✅ JWT + API Key |
 | Cron scheduler (PREPARING → SHIPPED → DELIVERED) | ⏳ Pendiente |
 | Productor Kafka (OrderShipped / OrderDelivered) | ⏳ Pendiente |
-| Consumer en order-service (actualizar estado) | ⏳ Pendiente |
+| Consumer en order-service (order-preparing / order-shipped / order-delivered) | ✅ Funcionando |
+| topic order-preparing desde ShipmentUseCase | ✅ Publicado al crear shipment |
 
 ### Infraestructura (K8s + ArgoCD)
 
@@ -496,4 +515,5 @@ Todo es `/api/...` sin `/api/v1/...`. Si mañana cambia la respuesta de un endpo
 | **Productor Kafka (order-shipped / order-delivered)** | ✅ **Funcionando** |
 | **ShedLock reemplaza StepLock manual** | ✅ **Implementado** |
 | **Topics Kafka creados (kafka-init en compose)** | ✅ **order-shipped + order-delivered** |
-| Consumer en order-service (actualizar estado) | ⏳ Pendiente |
+| Consumer en order-service (order-preparing / order-shipped / order-delivered) | ✅ Funcionando |
+| topic order-preparing desde ShipmentUseCase | ✅ Publicado al crear shipment |

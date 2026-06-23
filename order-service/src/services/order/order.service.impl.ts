@@ -7,8 +7,9 @@ import OrderRepository from '../../persistence/order/order.repository.interface.
 import ProductDTO from '../product/dto/product.dto.js';
 import { HttpError } from '../../middlewares/errorHandler.js';
 import KafkaProducer from '../../kafka/kafka.producer.js';
-import OrderPaidEvent from '../../kafka/order-event.interface.js';
+import { OrderPaidEvent } from '../../kafka/order-event.interface.js';
 import logger from '../../config/logger.js';
+import OrderStatusTransition from '../../models/service/orderStatusTransition.js';
 
 class OrderServiceImpl implements OrderService {
 
@@ -110,7 +111,7 @@ class OrderServiceImpl implements OrderService {
     }
 
     const currentStatus = order.getStatus();
-    if (!this.isValidTransition(currentStatus, newStatus)) {
+    if (!OrderStatusTransition.isValidTransition(currentStatus, newStatus)) {
       throw new HttpError(
         `Invalid transition from ${currentStatus} to ${newStatus}`,
         400
@@ -154,16 +155,7 @@ class OrderServiceImpl implements OrderService {
     return user;
   }
 
-  private isValidTransition(current: OrderStatus, next: OrderStatus): boolean {
-    const transitions: Record<OrderStatus, OrderStatus[]> = {
-      [OrderStatus.PENDING]: [OrderStatus.PAID, OrderStatus.CANCELLED],
-      [OrderStatus.PAID]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
-      [OrderStatus.PREPARING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-      [OrderStatus.SHIPPED]: [],
-      [OrderStatus.CANCELLED]: [],
-    };
-    return transitions[current]?.includes(next) ?? false;
-  }
+  
 
 }
 

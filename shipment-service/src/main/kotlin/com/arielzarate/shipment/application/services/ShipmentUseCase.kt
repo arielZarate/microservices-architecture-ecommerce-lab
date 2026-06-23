@@ -7,13 +7,18 @@ import com.arielzarate.shipment.domain.ports.`in`.ShipmentService
 import com.arielzarate.shipment.domain.ports.out.ShipmentProvider
 import com.arielzarate.shipment.interfaces.error.exception.ShipmentErrorException
 import com.arielzarate.shipment.interfaces.error.model.ShipmentError
+import com.arielzarate.shipment.interfaces.utils.CompanionLogger
+import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 
 @Service
 class ShipmentUseCase(
     private val provider: ShipmentProvider,
-    private val addressUseCase: AddressUseCase
+    private val addressUseCase: AddressUseCase,
+    private val kafka: KafkaTemplate<String, Any>
 ) : ShipmentService {
+
+    companion object : CompanionLogger()
 
     override fun getAllShipments(): List<Shipment> {
         return provider.findAll()
@@ -26,7 +31,12 @@ class ShipmentUseCase(
             ) as Throwable
     }
 
-    override fun createShipment(orderId: String, customerId: Long, customerName: String, items: List<ShipmentItem>): Shipment {
+    override fun createShipment(
+        orderId: String,
+        customerId: Long,
+        customerName: String,
+        items: List<ShipmentItem>
+    ): Shipment {
         val address = addressUseCase.getAddressByUserId(customerId)
 
         val shipment = Shipment(
@@ -37,6 +47,22 @@ class ShipmentUseCase(
             address = address,
             items = items
         )
-        return provider.save(shipment)
+        val saved = provider.save(shipment)
+        log.info("Processing shipment PREPARING..")
+
+        //EMIT EVENT : ORDER-PREPARING
+        kafka.send(
+            "order-preparing",
+            mapOf(
+                "eventType" to "ORDER_PREPARING",
+                "orderId" to saved.id,
+                "customerId" to saved.customerId,
+                "customerName" to saved.customerName,
+                "status" to saved.status
+            )
+        )
+        log.info("Published order-preparing for order: ${saved.id}")
+
+        return saved
     }
 }

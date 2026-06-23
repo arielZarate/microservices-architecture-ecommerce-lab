@@ -1,8 +1,9 @@
 import 'dotenv/config';
 import app from './app.js';
-import kafkaInstance from './kafka/index.js';
 import prisma from './lib/prisma.js';
 import logger from './config/logger.js';
+import OrderConsumer from './kafka/order.consumer.js';
+import { kafkaProducer, orderService, KAFKA_BROKER } from './di/container.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -20,10 +21,16 @@ async function start() {
   }
 
   try {
-    //kafka optional
-    await kafkaInstance.connect();
+    await kafkaProducer.connect();
   } catch (error) {
-   logger.warn(`Kafka not available: ${(error as Error).message}`);
+   logger.warn(`Kafka producer not available: ${(error as Error).message}`);
+  }
+
+  try {
+    const orderConsumer = new OrderConsumer(KAFKA_BROKER, orderService);
+    await orderConsumer.consume();
+  } catch (error) {
+    logger.warn(`Kafka consumer not available: ${(error as Error).message}`);
   }
 
   app.listen(PORT, () => {
@@ -32,7 +39,7 @@ async function start() {
 }
 
 start().catch((error)=>{
- logger.error(
+  logger.error(
     `APPLICATION START ERROR: ${(error as Error).message}`
   );
 });

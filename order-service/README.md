@@ -33,18 +33,24 @@ Routes → Controller (clase, usa interfaz)
             PostgreSQL
 ```
 
-### Inyección de Dependencias
+### Inyección de Dependencias (Composition Root)
 
-Todas las dependencias se crean en `order.route.ts` y se inyectan manualmente:
+Todas las dependencias se crean en `src/di/container.ts` (único lugar):
 
 ```typescript
-const productClient = new ProductClientService(url);
+const kafkaProducer = new KafkaProducer(KAFKA_BROKER);
+const productClient = new ProductClientService(PRODUCT_SERVICE_URL);
 const orderRepository = new OrderRepositoryImpl();
-const kafkaProducer = new KafkaProducer(process.env.KAFKA_BROKER);
-const orderService: OrderService = new OrderServiceImpl(
-  productClient, orderRepository, kafkaProducer
-);
+const orderService = new OrderServiceImpl(productClient, orderRepository, kafkaProducer);
 const orderController = new OrderController(orderService);
+
+export { kafkaProducer, orderService, orderController, KAFKA_BROKER };
+```
+
+Las rutas (`order.route.ts`) solo importan el controller ya armado:
+
+```typescript
+import { orderController } from '../di/container.js';
 ```
 
 ---
@@ -64,7 +70,10 @@ const orderController = new OrderController(orderService);
 
 ### Resumen
 
-Cuando una orden cambia a estado `PAID`, el order-service publica un evento en el topic `"order-paid"`. El **shipment-service** consume ese evento para crear un envío asociado a esa orden.
+order-service tiene dos roles en Kafka:
+
+1. **Producer**: Cuando una orden cambia a `PAID`, publica `"order-paid"` para que shipment-service cree el envío.
+2. **Consumer**: Escucha `"order-preparing"`, `"order-shipped"` y `"order-delivered"` para actualizar el estado de la orden localmente.
 
 ### Infraestructura (Docker)
 
@@ -104,10 +113,11 @@ El microservicio usa esta variable para saber dónde conectarse a Kafka. Si no e
 ### Archivos del módulo Kafka
 
 ```
-src/services/kafka/
+src/kafka/
 ├── kafka.producer.ts              # Clase productora
-└── events/
-    └── order-paid.event.ts        # Interfaz del evento
+├── order.consumer.ts              # Clase consumidora
+├── order-event.interface.ts       # Interfaces de eventos
+└── index.ts                       # Singleton kafkaProducer (legacy)
 ```
 
 ### KafkaProducer — clase
@@ -244,21 +254,67 @@ async function start() {
 
 Si Kafka no está disponible al iniciar, el servicio igual arranca (graceful degradation) y el `publish()` reintentará la conexión automáticamente gracias al flag `connected` en el producer.
 
+### Consumer — OrderConsumer
+
+Ubicación: `src/kafka/order.consumer.ts`
+
+```typescript
+await this.consumer.subscribe({ topic: 'order-preparing', fromBeginning: true });
+await this.consumer.subscribe({ topic: 'order-shipped', fromBeginning: true });
+await this.consumer.subscribe({ topic: 'order-delivered', fromBeginning: true });
+```
+
+Cuando llega un mensaje, mapea el topic al estado correspondiente y actualiza la orden:
+
+```typescript
+const statusMap: Record<string, OrderStatus> = {
+  'order-preparing': OrderStatus.PREPARING,
+  'order-shipped': OrderStatus.SHIPPED,
+  'order-delivered': OrderStatus.DELIVERED,
+};
+await this.orderService.updateStatus(event.orderId, newStatus);
+```
+
 ### Flujo completo
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant OrderService
-    participant Kafka
-    participant ShipmentService
+```
+order-service                              shipment-service
+─────────────                              ────────────────
 
-    Client->>OrderService: PUT /order/:id/status { status: PAID }
-    OrderService->>OrderService: Valida transición PENDING → PAID
-    OrderService->>OrderService: Actualiza DB
-    OrderService->>Kafka: Publica "order-paid"
-    Kafka->>ShipmentService: Consume "order-paid"
-    ShipmentService->>ShipmentService: Crea Shipment(orderId, PREPARING)
+PAID (manual)
+  │
+  ├─ publish("order-paid") ───────────────► consume: crea Shipment(PREPARING)
+  │                                            │
+  │                                            ├─ publish("order-preparing")
+  │◄───────────────────────────────────────────┘
+  │
+  ├─ consume("order-preparing")
+  │  updateStatus(PREPARING) ✓
+  │
+  │                                        Cron: PREPARING → SHIPPED
+  │                                            │
+  │                                            ├─ publish("order-shipped")
+  │◄───────────────────────────────────────────┘
+  │
+  ├─ consume("order-shipped")
+  │  updateStatus(SHIPPED) ✓
+  │
+  │                                        Cron: SHIPPED → DELIVERED
+  │                                            │
+  │                                            ├─ publish("order-delivered")
+  │◄───────────────────────────────────────────┘
+  │
+  ├─ consume("order-delivered")
+  │  updateStatus(DELIVERED) ✓
+```
+
+### Wiring en server.ts
+
+```typescript
+import { kafkaProducer, orderService, KAFKA_BROKER } from './di/container.js';
+
+const orderConsumer = new OrderConsumerImpl(KAFKA_BROKER, orderService);
+await orderConsumer.consume();
 ```
 
 ---
@@ -281,9 +337,11 @@ order-service/
 │   │   └── prisma.ts            # Prisma client singleton
 │   ├── context/
 │   │   └── user.context.ts       # AsyncLocalStorage para JWT
+│   ├── di/
+│   │   └── container.ts          # Composition Root (crea todas las dependencias)
 │   ├── routes/
 │   │   ├── index.route.ts        # Agrupador de rutas
-│   │   ├── order.route.ts       # Rutas + DI + export kafkaProducer
+│   │   ├── order.route.ts       # Rutas (importa controller del container)
 │   │   ├── api.route.ts         # Ruta raíz del microservicio
 │   │   └── health.route.ts      # Health check
 │   ├── controllers/
@@ -551,6 +609,9 @@ docker compose ps
 - ✅ **userContext con lastName** (para fullname del cliente)
 - ✅ **validateHeader middleware** para endpoints internos (API Key)
 - ✅ **customerName como fullname** (name + lastName)
+- ✅ **Composition Root en di/container.ts** (único punto de wiring)
+- ✅ **OrderConsumer** (order-preparing, order-shipped, order-delivered)
+- ✅ **order.route.ts libre de lógica de instanciación**
 
 ---
 
