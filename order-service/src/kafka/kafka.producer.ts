@@ -1,4 +1,3 @@
-import { NextFunction } from 'express';
 import { Kafka, Producer } from 'kafkajs';
 import logger from '../config/logger.js';
 
@@ -30,7 +29,7 @@ class KafkaProducer {
   async publish<T>(topic: string, message: T): Promise<void> {
     try {
       await this.connect();
-    await this.producer.send({
+      await this.producer.send({
       topic,
       messages: [
         { 
@@ -41,7 +40,7 @@ class KafkaProducer {
       }
     ]});
 
-    logger.info(`EVENT SENT -> ${topic}`)
+    logger.info(`PAID EVENT PRODUCER  -> ${topic}`)
 
     } catch (error:unknown) {
         logger.error('KAFKA PUBLISH ERROR', error);

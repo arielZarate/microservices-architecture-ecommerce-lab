@@ -1,23 +1,7 @@
 import express from 'express';
-import OrderController from '../controllers/order.controller.js';
-import OrderService from '../services/order/order.service.interface.js';
-import OrderServiceImpl  from '../services/order/order.service.impl.js';
-import ProductClientService from '../services/product/product.client.service.js';
-import OrderRepositoryImpl from '../persistence/order/order.repository.impl.js';
 import middleware_security from '../middlewares/token.interceptor.js';
-import kafkaInstance from '../kafka/index.js';
 import validateHeader from '../middlewares/validaterHeader.js';
-
-const url = process.env.PRODUCT_SERVICE_URL || 'http://localhost:8080/api';
-
-
-//====INYECTAR KAFKA=========
-
-const productClient = new ProductClientService(url);
-const orderRepository = new OrderRepositoryImpl();
-
-const orderService: OrderService = new OrderServiceImpl(productClient, orderRepository,kafkaInstance);
-const orderController = new OrderController(orderService);
+import { orderController } from '../di/container.js';
 
 const router = express.Router();
 
@@ -32,7 +16,7 @@ const router = express.Router();
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, PAID, PREPARING, SHIPPED, CANCELLED]
+ *           enum: [PENDING, PAID, PREPARING, SHIPPED, DELIVERED, CANCELLED]
  *         description: Filtrar por estado
  *     responses:
  *       200:
@@ -162,7 +146,7 @@ router.post('/' ,middleware_security,orderController.createOrder.bind(orderContr
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [PAID, PREPARING, SHIPPED, CANCELLED]
+ *                 enum: [PAID, PREPARING, SHIPPED, DELIVERED, CANCELLED]
  *                 example: PAID
  *     responses:
  *       200:

@@ -40,10 +40,10 @@ interfaces/
 ## Comunicación actual
 
 | Tipo | Tecnología | Hacia | Detalle |
-|---|---|---|---|
+|---|---|---|---|---|
 | REST (client) | WebClient | shipment → user-service | Obtiene dirección del cliente (`/api/address/{customerId}`) con API Key |
 | Kafka (consumer) | Spring Kafka | order-service → shipment | Consume `order-paid` para crear envío en PREPARING |
-| Kafka (producer) | Spring Kafka | shipment → order-service | Produce `order-shipped` (PREPARING→SHIPPED) y `order-delivered` (SHIPPED→DELIVERED) |
+| Kafka (producer) | Spring Kafka | shipment → order-service | Produce `order-preparing` (al crear shipment), `order-shipped` (PREPARING→SHIPPED) y `order-delivered` (SHIPPED→DELIVERED) |
 
 ## Endpoints REST
 
@@ -118,16 +118,26 @@ order-service                                     shipment-service
                                                    Consume "order-paid"
                                                    → crea Shipment(id=orderId, status=PREPARING)
                                                    → persiste address en DB local
+                                                   → envía Kafka "order-preparing"  ← NUEVO
                                                    
+  Recibe "order-preparing"
+    → updateStatus(PREPARING)
+                                                    
                                                    [Cada 1 min] Cron step 1:
                                                      Adquiere lock "preparing-to-shipped"
                                                      → Shipments PREPARING → SHIPPED
                                                      → Envía Kafka "order-shipped"
-                                                   
+                                                    
+  Recibe "order-shipped"
+    → updateStatus(SHIPPED)
+                                                    
                                                    [Cada 2 min en :30] Cron step 2:
                                                      Adquiere lock "shipped-to-delivered"
                                                      → Shipments SHIPPED → DELIVERED
                                                      → Envía Kafka "order-delivered"
+                                                    
+  Recibe "order-delivered"
+    → updateStatus(DELIVERED)
 ```
 
 ## Estado actual del código
@@ -148,7 +158,8 @@ order-service                                     shipment-service
 | **Scheduler PREPARING → SHIPPED (cron + ShedLock)** | ✅ **Funcionando** |
 | **Scheduler SHIPPED → DELIVERED (cron + ShedLock)** | ✅ **Funcionando** |
 | StepLock manual (eliminado, reemplazado por ShedLock) | ❌ Eliminado |
-| REST PUT status a order-service | ⏳ Pendiente (consumer en order-service) |
+| **Kafka producer (order-preparing al crear shipment)** | ✅ **Implementado en ShipmentUseCase** |
+| Consumer en order-service (order-preparing / order-shipped / order-delivered) | ✅ Implementado en order-service |
 | Topics `order-shipped` y `order-delivered` | ✅ Creados via `kafka-init` en docker-compose |
 
 ## Stack
