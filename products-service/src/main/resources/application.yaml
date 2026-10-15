@@ -1,3 +1,4 @@
+
 server:
   servlet:
     context-path: /api
@@ -10,7 +11,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/products_management
     username: postgres
-    password: 1111
+    password: admin
     driver-class-name: org.postgresql.Driver
 
   jpa:
