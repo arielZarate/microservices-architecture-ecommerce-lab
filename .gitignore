@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+
+# Builds compilados
+dist/
+target/
+
+# Entorno (secretos)
+.env
+.env.*
+!.env.example
+
+# IDE / editors
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+
+# Logs
+*.log
+
+# OS
+.DS_Store

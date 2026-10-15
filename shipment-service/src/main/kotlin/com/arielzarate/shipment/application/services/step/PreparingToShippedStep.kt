@@ -21,7 +21,7 @@ class PreparingToShippedStep(
         val shipments = provider.findByStatus(ShipmentStatus.PREPARING)
         if (shipments.isEmpty()) return
 
-        log.info("Processing {} shipments from PREPARING to SHIPPED", shipments.size)
+      //  log.info("Processing {} shipments from PREPARING to SHIPPED", shipments.size)
 
         shipments.forEach { shipment ->
             val updated = shipment.copy(status = ShipmentStatus.SHIPPED)

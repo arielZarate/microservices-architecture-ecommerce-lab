@@ -241,76 +241,238 @@ Cada servicio tiene su propio README con detalles de implementación, endpoints 
 
 ---
 
-## Plan de despliegue: K8s + ArgoCD (GitOps)
+## Plan de despliegue unificado: Docker → Minikube → GitOps
+
+> **Fuente única de verdad.** Este plan unifica y reemplaza al antiguo `PLAN.md` (ya eliminado)
+> y a las fases previas de este README. 8 fases en orden progresivo + un track paralelo de tests.
+> Cada fase termina con un **criterio de éxito** verificable.
 
 ### Arquitectura objetivo
 
 ```
-GitHub (manifests YAML)
-        ↓
-      ArgoCD
-        ↓
-k3d Kubernetes cluster
-        ↓
-     Ingress
-        ↓
-API Gateway (Spring Cloud Gateway)
-        ↓
-  Microservicios:
-  - user-service (Node)
-  - order-service (Node)
-  - products-service (Java)
-  - shipment-service (Kotlin)
-        ↓
-  Kafka (KRaft) + PostgreSQL (una por servicio)
+Cliente → Minikube (Kubernetes)
+            └── Ingress → API Gateway (Spring Cloud Gateway :8082)
+                              ├── /api/auth/*       → user-service    (:4000)  [Node + Express + Prisma]
+                              ├── /api/orders/*     → order-service   (:3000)  [Node + Express + Prisma + KafkaJS]
+                              ├── /api/products/*   → products-service (:8080) [Java 21 + Spring Boot]
+                              └── /api/shipments/*  → shipment-service (:8081) [Kotlin + Spring Boot]
+                                        │
+                                        ▼
+                                 Kafka (KRaft) + PostgreSQL (una por servicio)
+
+Git (manifests YAML) → ArgoCD → Minikube
+                              ▲
+       CI (GitHub Actions): build → test → docker push (no toca deploy)
 ```
 
 ### Regla de oro
 
 | Componente | Rol |
 |---|---|
-| **Kubernetes (k3d)** | Runtime — dónde corren los servicios |
+| **Minikube (K8s)** | Runtime — dónde corren los servicios |
 | **ArgoCD** | Despliegue automático — GitOps |
-| **CI (GitHub Actions / Jenkins)** | Build + test + Docker push (no toca deploy) |
+| **CI (GitHub Actions)** | Build + test + Docker push (no toca deploy) |
 
 No se mezclan responsabilidades.
 
 ---
 
-### Fases
+### Las 8 fases
 
-#### 🥇 FASE 1 — Kubernetes base (k3d)
-- [ ] Levantar cluster k3d
-- [ ] Deploy manual de todos los servicios (YAMLs)
-- [ ] Services, Ingress, ConfigMaps, Secrets
-- [ ] Objetivo: sistema funcionando SIN automatización
+#### 🥇 FASE 1 — Dockerfiles (4 servicios, multi-stage)
 
-#### 🥈 FASE 2 — Infra interna en K8s
-- [ ] Kafka en Kubernetes
-- [ ] PostgreSQL (un pod por servicio)
-- [ ] Networking interno entre pods
+| Servicio | Lenguaje | Imagen base | Puerto runtime |
+|---|---|---|---|
+| `user-service` | Node.js | `node:22-alpine` | 4000 |
+| `order-service` | Node.js | `node:22-alpine` | 3000 |
+| `products-service` | Java 21 | `eclipse-temurin:21-jre-alpine` | 8080 |
+| `shipment-service` | Kotlin | `eclipse-temurin:21-jre-alpine` | 8081 |
 
-#### 🥉 FASE 3 — API Gateway
-- [ ] Spring Cloud Gateway como punto de entrada único
-- [ ] Routing hacia cada microservicio
-- [ ] Validación JWT centralizada
-- [ ] Headers comunes (API Key interna)
-- [ ] Control de tráfico
+- [ ] Un `Dockerfile` multi-stage + `.dockerignore` por servicio
 
-#### 🧩 FASE 4 — Estabilización del cluster
-- [ ] Health checks
-- [ ] Readiness / Liveness probes
-- [ ] Config centralizada por environment
+Patrón para Node:
+```dockerfile
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npx prisma generate
+RUN npm run build
 
-#### 🥇 FASE 5 — ArgoCD (GitOps)
-- [ ] Instalar ArgoCD en el cluster
-- [ ] Conectar con repositorio Git de manifests
-- [ ] `git push` → ArgoCD detecta → cluster se actualiza solo
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package.json ./
+EXPOSE <PORT>
+CMD ["node", "dist/server.js"]
+```
 
-#### 🥈 FASE 6 — CI (opcional)
-- [ ] GitHub Actions o Jenkins
-- [ ] Build + test + Docker push
-- [ ] No toca deploy (eso lo hace ArgoCD)
+Patrón para Java/Kotlin:
+```dockerfile
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /app
+COPY mvnw pom.xml ./
+COPY .mvn .mvn
+RUN ./mvnw dependency:go-offline
+COPY src src
+RUN ./mvnw package -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/target/*.jar app.jar
+EXPOSE <PORT>
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+**Criterio de éxito:** las 4 imágenes buildeadas y cada una responde su endpoint de health.
+
+---
+
+#### 🥈 FASE 2 — Docker Compose completo (infra + servicios)
+
+##### `docker-compose.yml` (infraestructura) — parcialmente creado
+- Kafka (KRaft) — ya existe ✅
+- PostgreSQL x4 (database-per-service):
+  - `postgres-user` → `users_management` → host :5432
+  - `postgres-order` → `orders_management` → host :5433
+  - `postgres-products` → `products_management` → host :5434
+  - `postgres-shipment` → `shipment_management` → host :5435
+- `kafka-init` — crear **todos** los topics: `order-paid`, `order-preparing`, `order-shipped`, `order-delivered`
+
+Se ejecuta solo (para desarrollo local con `npm run dev`):
+```bash
+docker compose up -d
+```
+
+##### `docker-compose.services.yml` (microservicios)
+- [ ] Los 4 servicios con `build:` apuntando a su Dockerfile
+- [ ] `depends_on` a su DB respectiva + Kafka
+- [ ] Variables de entorno apuntando a **nombres de servicio** (no `localhost`)
+- [ ] Puertos mapeados (4000, 3000, 8080, 8081)
+
+Se ejecuta junto con infra:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.services.yml up -d
+```
+
+**Criterio de éxito:** stack completo verde con un solo comando y el flujo de pedido funciona end-to-end.
+
+---
+
+#### 🥉 FASE 3 — Kubernetes base (Minikube)
+
+- [ ] `minikube start --addons=ingress`
+- [ ] Namespace dedicado (`lab`)
+- [ ] `Deployment` + `Service` + `ConfigMap` + `Secret` + `Ingress` por cada servicio
+- [ ] Imágenes cargadas en el cluster: `minikube image load <imagen>` (o desde un registry como GHCR)
+- [ ] Objetivo: sistema funcionando **SIN automatización** (todo con `kubectl apply`)
+
+**Criterio de éxito:** flujo end-to-end de un pedido pasando por el Ingress.
+
+---
+
+#### 🧩 FASE 4 — Infra interna en K8s (StatefulSets a mano)
+
+- [ ] PostgreSQL: 4 × `StatefulSet` + `PersistentVolumeClaim` + headless `Service` + `Secret` de credenciales
+- [ ] Migraciones al arrancar: `prisma migrate deploy` (Node) / JPA (JVM) — idealmente como `Job`
+- [ ] Kafka (KRaft, 1 broker): `StatefulSet` + `Service` + `Job` init que crea los 4 topics
+- [ ] Networking interno entre pods (DNS de servicios)
+
+**Criterio de éxito:** los servicios se conectan a PostgreSQL y Kafka **dentro del cluster**, sin depender del compose del host.
+
+---
+
+#### 🔧 FASE 5 — Estabilización del cluster
+
+- [ ] Readiness / Liveness / Startup probes (Node: `/health`, Spring: `actuator/health`)
+- [ ] `resources.requests` y `limits` por contenedor
+- [ ] Config centralizada: `ConfigMap` por ambiente + `Secret` (JWT_SECRET, API_KEY, DEVICE_ID)
+- [ ] Rollouts seguros (strategy, no downtime)
+
+**Criterio de éxito:** un pod killado se autorecupera y el rollout no corta tráfico.
+
+---
+
+#### 🚪 FASE 6 — API Gateway (Spring Cloud Gateway :8082)
+
+Nuevo proyecto Java/Spring Boot en el repo: `gateway-service/`
+
+- [ ] Punto único de entrada (puerto 8082)
+- [ ] Ruteo por path: `/api/auth/*`, `/api/orders/*`, `/api/products/*`, `/api/shipments/*`
+- [ ] Validación JWT de forma centralizada
+- [ ] Agregar headers de API Key interna (`X-Middleware-ApiKey` + `X-Middleware-DeviceId`) automáticamente
+- [ ] Rate limiting y circuit breaker (Resilience4j)
+- [ ] Ingress redirige todo el tráfico al gateway
+
+**Criterio de éxito:** todo el tráfico externo entra por el gateway; los servicios ya no se exponen directo.
+
+---
+
+#### 🔁 FASE 7 — GitOps: CI (GitHub Actions) + ArgoCD
+
+> **CI antes que ArgoCD**: GitOps necesita las imágenes ya subidas al registry para que los
+> manifests referenciados resuelvan.
+
+- [ ] **CI**: GitHub Actions — Node (`npm ci` → `npm run build` → `docker build`), JVM (`./mvnw package` → `docker build`) → push a GHCR
+- [ ] **CD**: instalar ArgoCD en Minikube y crear un `Application` apuntando a los manifests del repo
+- [ ] Actualizar tag de imagen en los manifests → ArgoCD detecta → cluster se actualiza solo
+- [ ] No hay deploy manual: `git push` → cluster actualizado
+
+**Criterio de éxito:** un `git push` termina con el cambio desplegado en el cluster sin tocar kubectl.
+
+---
+
+#### 📈 FASE 8 — Observabilidad
+
+| Herramienta | Rol |
+|---|---|
+| **Prometheus** | Métricas de cada servicio |
+| **Grafana** | Dashboards |
+| **Loki + Promtail** | Logs estructurados (JSON) |
+| **OpenTelemetry + Jaeger/Tempo** | Tracing distribuido (traceId/correlationId) |
+
+- [ ] Cada servicio exporta métricas y logs en formato JSON
+- [ ] CorrelationId que cruce las llamadas entre microservicios
+
+**Criterio de éxito:** dashboard con métricas de los 4 servicios y una traza completa de un pedido.
+
+---
+
+#### 🧪 Track paralelo — Tests (posterior a Fase 8)
+
+- Unitarios de dominio: JUnit 5 (JVM), Vitest (Node)
+- Tests de integración: Testcontainers (JVM), supertest + DB real (Node)
+- Contract testing (opcional)
+
+---
+
+### Relación con cloud real (AWS / Azure)
+
+| Local (Minikube) | Producción cloud |
+|---|---|
+| minikube cluster | AWS EKS / Azure AKS / Google GKE |
+| Dockerfiles | Mismas imágenes, mismo build |
+| docker-compose | Solo para dev local |
+| `minikube image load` / GHCR | Docker push a ECR / ACR |
+| Ingress (addon de Minikube) | Load Balancer (ALB / NLB) |
+| Manifests YAML | Mismos manifests en Git |
+| ArgoCD | ArgoCD en cluster real |
+
+Lo que aprendas con Minikube y kubectl sirve **exactamente igual** en EKS, AKS o GKE.
+
+---
+
+### Notas clave
+
+1. **Kubernetes no reemplaza API Gateway**: K8s tiene Ingress para ruteo básico, pero no valida JWT ni rate limiting nativo. El API Gateway es necesario igual.
+2. **Docker Compose no es producción**: es para desarrollo local. En producción se usa K8s o similar.
+3. **Database-per-service**: cada microservicio tiene su propia BD, no comparten schema.
+4. **API Key interna**: toda comunicación service-to-service lleva `X-Middleware-ApiKey` + `X-Middleware-DeviceId`.
+5. **JWT**: user-service genera, el resto valida con `JWT_SECRET` compartido.
+6. **API Gateway centraliza**: JWT validation + API Key headers + routing en un solo lugar.
 
 ---
 
@@ -337,21 +499,24 @@ No se mezclan responsabilidades.
 | customerName como fullname (name + lastName) | ✅ Implementado |
 | JWT en products-service | ✅ Implementado |
 | API Key en products-service (POST/PUT/DELETE) | ✅ JWT + API Key |
-| Cron scheduler (PREPARING → SHIPPED → DELIVERED) | ⏳ Pendiente |
-| Productor Kafka (OrderShipped / OrderDelivered) | ⏳ Pendiente |
+| Cron scheduler (PREPARING → SHIPPED → DELIVERED) | ✅ Funcionando con ShedLock |
+| Productor Kafka (OrderShipped / OrderDelivered) | ✅ Funcionando |
 | Consumer en order-service (order-preparing / order-shipped / order-delivered) | ✅ Funcionando |
 | topic order-preparing desde ShipmentUseCase | ✅ Publicado al crear shipment |
 
-### Infraestructura (K8s + ArgoCD)
+### Infraestructura (Docker → Minikube → GitOps)
 
 | Fase | Estado |
 |---|---|
-| FASE 1 — Kubernetes base (k3d) | ⏳ Pendiente |
-| FASE 2 — Infra interna (Kafka + DBs) | ⏳ Pendiente |
-| FASE 3 — API Gateway | ⏳ Pendiente |
-| FASE 4 — Estabilización del cluster | ⏳ Pendiente |
-| FASE 5 — ArgoCD (GitOps) | ⏳ Pendiente |
-| FASE 6 — CI (opcional) | ⏳ Pendiente |
+| FASE 1 — Dockerfiles (4 servicios) | ⏳ Pendiente |
+| FASE 2 — Docker Compose completo (infra + servicios) | ⏳ Pendiente |
+| FASE 3 — Kubernetes base (Minikube) | ⏳ Pendiente |
+| FASE 4 — Infra interna en K8s (StatefulSets) | ⏳ Pendiente |
+| FASE 5 — Estabilización del cluster | ⏳ Pendiente |
+| FASE 6 — API Gateway (Spring Cloud Gateway) | ⏳ Pendiente |
+| FASE 7 — GitOps: CI (GitHub Actions) + ArgoCD | ⏳ Pendiente |
+| FASE 8 — Observabilidad (Prom/Grafana/Loki/OTel) | ⏳ Pendiente |
+| Track paralelo — Tests | ⏳ Pendiente |
 
 ---
 
@@ -429,15 +594,16 @@ Spring Boot 4.0.x todavía está en milestone (no es GA). Esto puede traer probl
 
 ~5000 líneas de código y coverage casi nulo. **Esto es deuda técnica crítica** porque cualquier refactor rompe cosas sin que te enteres. Mínimo: tests unitarios de dominio y tests de integración de repositorios.
 
-**3. Missing consumer en order-service**
-Se produce `order-shipped` y `order-delivered` desde shipment, pero **order-service no los consume**. El flujo Kafka está a medio hacer. La orden nunca se entera de que su shipment cambió de estado.
+**3. Missing consumer en order-service** ~~→ ✅ Resuelto~~
+~~Se produce `order-shipped` y `order-delivered` desde shipment, pero **order-service no los consume**. El flujo Kafka está a medio hacer. La orden nunca se entera de que su shipment cambió de estado.~~
+Actualmente **order-service consume correctamente** `order-shipped` y `order-delivered` vía `OrderConsumer`, actualizando el estado de la orden. El flujo Kafka está completo.
 
 **4. Sin schema registry ni contractos para Kafka**
 Los eventos Kafka son `Map<String, Any>` en shipment y objetos tipados en order-service. No hay un esquema compartido (Avro/Protobuf/JSON Schema). Si se cambia la estructura del evento, **no hay forma de saber que se rompió el otro servicio** hasta que explota en runtime.
 
 **5. Typos en nombres de archivos y packages**
 - `user-service/src/routes/adddress.route.ts` (triple d)
-- `user-service/src/middlewares/validaterHeader.ts` (validator ≠ validater)
+- `order-service/src/middlewares/validaterHeader.ts` (validator ≠ validater)
 - `products-service/.../infraestructure/` (infrastructure ≠ infraestructure)
 
 Hablan de falta de code review. Si hay typos en nombres, probablemente también los haya en lógica.
@@ -481,7 +647,7 @@ Todo es `/api/...` sin `/api/v1/...`. Si mañana cambia la respuesta de un endpo
 ### 🔥 Prioridad de mejora
 
 1. **Testear**: tests unitarios del dominio en cada servicio
-2. **Terminar el consumer** en order-service para `order-shipped`/`order-delivered`
+2. ✅ ~~**Terminar el consumer** en order-service para `order-shipped`/`order-delivered`~~ → Ya implementado
 3. **Unificar versión de Spring Boot** o dejar clara la justificación
 4. **Agregar correlationId** a los logs (middleware que genere UUID por request)
 5. **Corregir los typos** en nombres de archivos y packages
