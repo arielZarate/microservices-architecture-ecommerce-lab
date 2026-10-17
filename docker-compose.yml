@@ -23,6 +23,7 @@ services:
     networks: [ ecommerce ]
 
   products-service:
+    container_name: products-service
     build: ./products-service
     depends_on:
       postgres:
