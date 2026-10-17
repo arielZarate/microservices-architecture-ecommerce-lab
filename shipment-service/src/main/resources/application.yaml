@@ -28,7 +28,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/shipment_management
     username: postgres
-    password: 1111
+    password: admin
     driver-class-name: org.postgresql.Driver
 
   jpa:

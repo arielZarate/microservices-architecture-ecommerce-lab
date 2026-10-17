@@ -1,4 +1,48 @@
+
 services:
+
+  # =======================DATABASES===================================
+
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      # POSTGRES_DB se omite: las 4 bases se crean en docker/postgres/init/01-databases.sql
+    ports:
+      - "5432:5432"                # solo para dev; en prod se omite
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [ ecommerce ]
+
+  products-service:
+    build: ./products-service
+    depends_on:
+      postgres:
+        condition: service_healthy       # no arranca hasta que la DB esté lista
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/products_management
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    ports: [ "8080:8080" ]
+    networks: [ ecommerce ]
+
+
+
+
+
+
+
+
+  ## ==================KAFKA=====================================
+
   kafka:
     image: apache/kafka:4.3.0
     container_name: kafka-container
@@ -32,3 +76,9 @@ services:
       /opt/kafka/bin/kafka-topics.sh --create --topic order-delivered --bootstrap-server kafka-container:9092 --partitions 1 --replication-factor 1 --if-not-exists
       echo "Topics created successfully"
     restart: "no"
+
+volumes:
+  postgres-data:
+
+networks:
+  ecommerce:

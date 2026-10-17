@@ -233,11 +233,120 @@ microservices-architecture-ecommerce-lab/
 ├── products-service/          # Java 21 + Spring Boot / Hexagonal
 ├── order-service/             # Node/Express + TypeScript + Prisma + KafkaJS
 ├── shipment-service/          # Kotlin + Spring Boot 4.0.6 + Kafka
-├── docker-compose.yml         # Kafka en modo KRaft
+├── docker/
+│   └── postgres/init/         # scripts de init: crean las 4 bases
+├── docker-compose.yml         # PostgreSQL + microservicios + Kafka (KRaft)
 └── README.md
 ```
 
 Cada servicio tiene su propio README con detalles de implementación, endpoints y configuración.
+
+---
+
+## Infraestructura local (Docker Compose)
+
+Estado actual del entorno containerizado del laboratorio.
+
+### Mapa de contenedores y bases de datos
+
+Una sola **instancia** de PostgreSQL 17 con **una base por microservicio** (database-per-service a nivel lógico).
+
+```
+CONTENEDOR postgres  (1 instancia de postgres:17)
+│
+├── products_management   ◄── la usa products-service
+├── shipment_management   ◄── la usa shipment-service
+├── orders_management     ◄── la usa order-service
+└── users_management      ◄── la usa user-service
+
+CONTENEDORES de apps (uno por microservicio)
+├── products-service      → se conecta a  postgres:5432/products_management
+├── shipment-service      → se conecta a  postgres:5432/shipment_management
+├── order-service         → se conecta a  postgres:5432/orders_management
+└── user-service          → se conecta a  postgres:5432/users_management
+```
+
+> Muchos contenedores de apps → **un** contenedor de base de datos (con una base por servicio).
+> La separación física en varias instancias es una decisión de operación (escala/aislamiento), no un requisito del patrón.
+
+### Contenedores
+
+| Contenedor | Imagen | Puerto host | Rol | Estado |
+|---|---|---|---|---|
+| `postgres` | `postgres:17` | 5432 | 1 instancia con las 4 bases | ✅ |
+| `products-service` | build `./products-service` | 8080 | Catálogo de productos | ✅ |
+| `shipment-service` | build `./shipment-service` | 8081 | Envíos + Kafka | ⏳ sin Dockerfile |
+| `order-service` | build `./order-service` | 3000 | Órdenes + Kafka | ⏳ sin Dockerfile |
+| `user-service` | build `./user-service` | 4000 | Usuarios + JWT | ⏳ sin Dockerfile |
+| `kafka` | `apache/kafka:4.3.0` | 9092 | Broker (KRaft) | ✅ |
+| `kafka-init` | `apache/kafka:4.3.0` | — | Crea los topics | ✅ |
+
+Cuando esté completo: **7 contenedores** (1 de DB + 4 de apps + 2 de Kafka).
+
+### Cómo se crean las bases de datos
+
+- La imagen oficial de Postgres ejecuta todo `.sql` de `/docker-entrypoint-initdb.d/` **solo la primera vez** (volumen vacío).
+- Las 4 bases se crean en `docker/postgres/init/01-databases.sql`.
+- El compose monta esa carpeta: `./docker/postgres/init:/docker-entrypoint-initdb.d:ro`.
+
+```sql
+-- docker/postgres/init/01-databases.sql
+CREATE DATABASE products_management;
+CREATE DATABASE shipment_management;
+CREATE DATABASE orders_management;
+CREATE DATABASE users_management;
+```
+
+### Cómo se conectan los servicios a la DB
+
+Dentro de la red `ecommerce` de compose, el host de la DB es el **nombre del servicio** (`postgres`), **no** `localhost` (dentro de un contenedor, `localhost` es el contenedor mismo).
+
+Las credenciales/URL se inyectan por variables de entorno y **sobreescriben**, por precedencia, los valores del `application.yaml` (relaxed binding):
+
+| Variable de entorno | Propiedad de Spring | Equivalente en Node |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | `spring.datasource.url` | `DATABASE_URL` |
+| `SPRING_DATASOURCE_USERNAME` | `spring.datasource.username` | `DB_USER` |
+| `SPRING_DATASOURCE_PASSWORD` | `spring.datasource.password` | (va en la URL) |
+
+Ejemplo (products-service en `docker-compose.yml`):
+
+```yaml
+    depends_on:
+      postgres:
+        condition: service_healthy       # no arranca hasta que la DB esté lista
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/products_management
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    networks: [ ecommerce ]
+```
+
+El `application.yaml` conserva los defaults de desarrollo (`localhost:5432`) para correr desde el IDE; el compose los pisa en el contenedor.
+
+### Comandos útiles
+
+```bash
+# Levantar infra + un servicio puntual
+docker compose up -d postgres products-service
+
+# Recrear el volumen (vuelve a correr los init scripts — borra los datos)
+docker compose down -v
+
+# Verificar que existan las 4 bases
+docker exec postgres psql -U postgres -tAc "SELECT datname FROM pg_database WHERE datistemplate=false;"
+
+# Logs y health
+docker compose logs products-service
+curl http://localhost:8080/api/actuator/health
+```
+
+### Notas
+
+- Los scripts de init **no se re-ejecutan** si el volumen ya tiene datos. Para aplicarlos hay que `docker compose down -v` y volver a levantar.
+- Las credenciales deberían vivir en un `.env` (no versionado) + `.env.example` de plantilla.
+- Las bases Node/Prisma usan password `1111` y las Spring `admin`: conviene unificarlas vía `POSTGRES_PASSWORD` al sumar los demás servicios.
+- Kafka hoy anuncia `PLAINTEXT://localhost:9092`, lo que **no** funciona entre contenedores; al sumar order/shipment hay que agregar un listener interno (`kafka-container:9092`).
 
 ---
 
@@ -290,43 +399,6 @@ No se mezclan responsabilidades.
 
 - [ ] Un `Dockerfile` multi-stage + `.dockerignore` por servicio
 
-Patrón para Node:
-```dockerfile
-FROM node:22-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npx prisma generate
-RUN npm run build
-
-FROM node:22-alpine
-WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/package.json ./
-EXPOSE <PORT>
-CMD ["node", "dist/server.js"]
-```
-
-Patrón para Java/Kotlin:
-```dockerfile
-FROM eclipse-temurin:21-jdk-alpine AS builder
-WORKDIR /app
-COPY mvnw pom.xml ./
-COPY .mvn .mvn
-RUN ./mvnw dependency:go-offline
-COPY src src
-RUN ./mvnw package -DskipTests
-
-FROM eclipse-temurin:21-jre-alpine
-WORKDIR /app
-COPY --from=builder /app/target/*.jar app.jar
-EXPOSE <PORT>
-ENTRYPOINT ["java", "-jar", "app.jar"]
-```
-
 **Criterio de éxito:** las 4 imágenes buildeadas y cada una responde su endpoint de health.
 
 ---
@@ -335,11 +407,9 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ##### `docker-compose.yml` (infraestructura) — parcialmente creado
 - Kafka (KRaft) — ya existe ✅
-- PostgreSQL x4 (database-per-service):
-  - `postgres-user` → `users_management` → host :5432
-  - `postgres-order` → `orders_management` → host :5433
-  - `postgres-products` → `products_management` → host :5434
-  - `postgres-shipment` → `shipment_management` → host :5435
+- PostgreSQL — implementación actual: **1 instancia con 4 bases** (ver [Infraestructura local](#infraestructura-local-docker-compose))
+  - `postgres` → `products_management`, `shipment_management`, `orders_management`, `users_management` → host :5432
+  - *Alternativa (si se necesita aislamiento): 4 instancias separadas, una por servicio.*
 - `kafka-init` — crear **todos** los topics: `order-paid`, `order-preparing`, `order-shipped`, `order-delivered`
 
 Se ejecuta solo (para desarrollo local con `npm run dev`):
@@ -508,8 +578,8 @@ Lo que aprendas con Minikube y kubectl sirve **exactamente igual** en EKS, AKS o
 
 | Fase | Estado |
 |---|---|
-| FASE 1 — Dockerfiles (4 servicios) | ⏳ Pendiente |
-| FASE 2 — Docker Compose completo (infra + servicios) | ⏳ Pendiente |
+| FASE 1 — Dockerfiles (4 servicios) | 🟡 `products-service` ✅ · faltan 3 |
+| FASE 2 — Docker Compose completo (infra + servicios) | 🟡 `postgres` + `products-service` ✅ · faltan 3 |
 | FASE 3 — Kubernetes base (Minikube) | ⏳ Pendiente |
 | FASE 4 — Infra interna en K8s (StatefulSets) | ⏳ Pendiente |
 | FASE 5 — Estabilización del cluster | ⏳ Pendiente |
