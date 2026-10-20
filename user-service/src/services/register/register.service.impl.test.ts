@@ -6,8 +6,10 @@ import UserRole from '../../models/enum/userRole.js';
 
 const mockRepo: UserRepository = {
   create: vi.fn(),
+  findById: vi.fn(),
   findByEmail: vi.fn(),
   findByCuit: vi.fn(),
+  findAddressByCustomerId: vi.fn(),
   updatePassword: vi.fn(),
 };
 

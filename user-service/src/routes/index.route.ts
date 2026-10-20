@@ -2,7 +2,7 @@ import { Router } from 'express';
 import loginRoute from './login.route.js';
 import registerRoute from './register.route.js';
 import resetPasswordRoute from './reset.password.route.js';
-import addressRoute from './adddress.route.js';
+import addressRoute from './address.route.js';
 import apiRoute from './api.route.js';
 import healthRoute from './health.route.js';
 

@@ -2,11 +2,11 @@
   "name": "user-service",
   "version": "1.0.0",
   "description": "msvc architecture ecommerce lab - user service",
-  "main": "dist/server.js",
+  "main": "dist/src/server.js",
   "scripts": {
     "dev": "tsx --watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:verbose": "vitest run --reporter verbose"
