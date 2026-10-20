@@ -1,0 +1,41 @@
+# Dependencias y artefactos de build
+**/node_modules
+**/dist
+**/coverage
+**/build
+
+# Prisma: el cliente se regenera en el build (npx prisma generate)
+**/generated
+
+# Tests (no van a la imagen)
+**/*.test.ts
+**/*.spec.ts
+**/vitest.config.*
+
+# Entorno y secretos
+**/.env
+**/.env.*
+**/.npmrc
+
+# Documentación
+**/README.md
+**/*.md
+
+# Docker
+**/Dockerfile*
+**/.dockerignore
+**/compose.y*ml*
+**/docker-compose*
+
+# Git e IDE
+**/.git
+**/.gitignore
+**/.idea
+**/.vscode
+**/*.iml
+**/.DS_Store
+
+# Logs y temporales
+**/*.log
+**/logs
+**/tmp
