@@ -35,6 +35,40 @@ services:
     ports: [ "8080:8080" ]
     networks: [ ecommerce ]
 
+  user-service-migrate:
+    container_name: user-service-migrate
+    image: user-service:latest
+    command: [ "npx", "prisma", "migrate", "deploy" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-admin}@postgres:5432/users_management
+    networks: [ ecommerce ]
+    restart: "no"
+
+  user-service:
+    container_name: user-service
+    image: user-service:latest
+    build: ./user-service
+    depends_on:
+      postgres:
+        condition: service_healthy       # no arranca hasta que la DB esté lista
+      user-service-migrate:
+        condition: service_completed_successfully   # espera a que migre
+    environment:
+      PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      DB_NAME: users_management
+      JWT_SECRET: ${JWT_SECRET:-sapee2026superSecretKeyForJwt256bits!!}
+      API_KEY: ${API_KEY:-idApp1237897key}
+      DEVICE_ID: ${DEVICE_ID:-idDevice321567Device}
+    ports: [ "4000:4000" ]
+    networks: [ ecommerce ]
+
 
 
 
@@ -60,6 +94,7 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks: [ ecommerce ]
 
   kafka-init:
     image: apache/kafka:4.3.0
@@ -76,6 +111,7 @@ services:
       /opt/kafka/bin/kafka-topics.sh --create --topic order-shipped --bootstrap-server kafka-container:9092 --partitions 1 --replication-factor 1 --if-not-exists
       /opt/kafka/bin/kafka-topics.sh --create --topic order-delivered --bootstrap-server kafka-container:9092 --partitions 1 --replication-factor 1 --if-not-exists
       echo "Topics created successfully"
+    networks: [ ecommerce ]
     restart: "no"
 
 volumes:
