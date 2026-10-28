@@ -22,6 +22,8 @@ services:
       retries: 10
     networks: [ ecommerce ]
 
+#=======================PRODUCTS SERVICE===============================
+
   products-service:
     container_name: products-service
     build: ./products-service
@@ -34,6 +36,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
     ports: [ "8080:8080" ]
     networks: [ ecommerce ]
+
+   
+   #=====================USER SERVICE=========================
 
   user-service-migrate:
     container_name: user-service-migrate
@@ -70,6 +75,44 @@ services:
     networks: [ ecommerce ]
 
 
+#================ORDERS SERVICE===========================
+  order-service-migrate:
+    container_name: order-service-migrate
+    image: order-service:latest
+    command: [ "npx", "prisma", "migrate", "deploy" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-admin}@postgres:5432/orders_management
+    networks: [ ecommerce ]
+    restart: "no"
+
+  order-service:
+    container_name: order-service
+    image: order-service:latest
+    build: ./order-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      order-service-migrate:
+        condition: service_completed_successfully
+    environment:
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      DB_NAME: orders_management
+      KAFKA_BROKER: kafka-container:29092
+      PRODUCT_SERVICE_URL: http://products-service:8080/api
+      JWT_SECRET: ${JWT_SECRET:-sapee2026superSecretKeyForJwt256bits!!}
+      API_KEY: ${API_KEY:-idApp1237897key}
+      DEVICE_ID: ${DEVICE_ID:-idDevice321567Device}
+    ports: [ "3000:3000" ]
+    networks: [ ecommerce ]
+
+
 
 
 
@@ -87,9 +130,9 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-container:9093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka-container:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -102,15 +145,17 @@ services:
     depends_on:
       - kafka
     entrypoint: ["/bin/sh", "-c"]
-    command: |
-      echo "Waiting for Kafka to be ready..."
-      until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-container:9092 --list >/dev/null 2>&1; do
-        sleep 2
-      done
-      echo "Creating topics order-shipped and order-delivered..."
-      /opt/kafka/bin/kafka-topics.sh --create --topic order-shipped --bootstrap-server kafka-container:9092 --partitions 1 --replication-factor 1 --if-not-exists
-      /opt/kafka/bin/kafka-topics.sh --create --topic order-delivered --bootstrap-server kafka-container:9092 --partitions 1 --replication-factor 1 --if-not-exists
-      echo "Topics created successfully"
+    command:
+      - |
+        echo "Waiting for Kafka to be ready..."
+        until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-container:29092 --list >/dev/null 2>&1; do
+          sleep 2
+        done
+        for topic in order-paid order-preparing order-shipped order-delivered; do
+          echo "Creating topic $$topic..."
+          /opt/kafka/bin/kafka-topics.sh --create --topic "$$topic" --bootstrap-server kafka-container:29092 --partitions 1 --replication-factor 1 --if-not-exists
+        done
+        echo "Topics created successfully"
     networks: [ ecommerce ]
     restart: "no"
 
