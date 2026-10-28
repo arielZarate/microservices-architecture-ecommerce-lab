@@ -3,8 +3,7 @@ package com.arielzarate.products.infraestructure.rest;
 import com.arielzarate.products.infraestructure.rest.models.FakeStoreProductResponse;
 import com.arielzarate.products.infraestructure.rest.providers.WebClientMethod;
 import com.arielzarate.products.infraestructure.rest.providers.WebClientProvider;
-import com.arielzarate.products.interfaces.errors.exception.ExternalClientException;
-import com.arielzarate.products.interfaces.errors.model.ClientError;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +11,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+
 
 @Component
 @Slf4j

@@ -2,7 +2,7 @@ package com.arielzarate.products.interfaces.errors.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
+
 
 @Getter
 @AllArgsConstructor
