@@ -26,6 +26,7 @@ services:
 
   products-service:
     container_name: products-service
+    image: products-service:latest
     build: ./products-service
     depends_on:
       postgres:
@@ -113,6 +114,33 @@ services:
     networks: [ ecommerce ]
 
 
+
+  #=======================SHIPMENT SERVICE===============================
+
+  shipment-service:
+    container_name: shipment-service
+    image: shipment-service:latest
+    build: ./shipment-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully   # topics listos antes de consumir
+    environment:
+      # application.yaml apunta a localhost; dentro de la red de compose se
+      # sobreescribe por variables de entorno (relaxed binding de Spring).
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shipment_management
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-container:29092
+      EXTERNALS_ADDRESS_CLIENT_HOST: http://user-service:4000
+      EXTERNALS_USER_CLIENT_HOST: http://user-service:4000
+      EXTERNAL_API_KEY: ${API_KEY:-idApp1237897key}
+      EXTERNAL_DEVICE_ID: ${DEVICE_ID:-idDevice321567Device}
+    ports: [ "8081:8081" ]
+    networks: [ ecommerce ]
 
 
 

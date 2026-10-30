@@ -75,4 +75,4 @@ COPY --from=build /usr/src/app/prisma.config.ts ./prisma.config.ts
 EXPOSE 4000
 
 # Run the application.
-CMD npm start
+CMD ["node","dist/src/server.js"]
