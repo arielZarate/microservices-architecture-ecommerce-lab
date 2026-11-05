@@ -22,12 +22,16 @@ services:
       retries: 10
     networks: [ ecommerce ]
 
+
+
+
 #=======================PRODUCTS SERVICE===============================
 
   products-service:
     container_name: products-service
     image: products-service:latest
     build: ./products-service
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy       # no arranca hasta que la DB esté lista
@@ -39,6 +43,9 @@ services:
     networks: [ ecommerce ]
 
    
+
+
+
    #=====================USER SERVICE=========================
 
   user-service-migrate:
@@ -57,6 +64,7 @@ services:
     container_name: user-service
     image: user-service:latest
     build: ./user-service
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy       # no arranca hasta que la DB esté lista
@@ -76,6 +84,9 @@ services:
     networks: [ ecommerce ]
 
 
+
+
+
 #================ORDERS SERVICE===========================
   order-service-migrate:
     container_name: order-service-migrate
@@ -93,11 +104,16 @@ services:
     container_name: order-service
     image: order-service:latest
     build: ./order-service
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
       order-service-migrate:
         condition: service_completed_successfully
+      kafka:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully   # topics listos antes de consumir  
     environment:
       PORT: 3000
       DB_HOST: postgres
@@ -106,6 +122,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       DB_NAME: orders_management
       KAFKA_BROKER: kafka-container:29092
+      KAFKA_GROUP_ID: order-service-group
       PRODUCT_SERVICE_URL: http://products-service:8080/api
       JWT_SECRET: ${JWT_SECRET:-sapee2026superSecretKeyForJwt256bits!!}
       API_KEY: ${API_KEY:-idApp1237897key}
@@ -115,12 +132,16 @@ services:
 
 
 
+
+
+
   #=======================SHIPMENT SERVICE===============================
 
   shipment-service:
     container_name: shipment-service
     image: shipment-service:latest
     build: ./shipment-service
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -165,6 +186,9 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka-data:/var/lib/kafka/data  
     networks: [ ecommerce ]
 
   kafka-init:
@@ -189,6 +213,7 @@ services:
 
 volumes:
   postgres-data:
+  kafka-data:
 
 networks:
   ecommerce:

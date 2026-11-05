@@ -753,3 +753,75 @@ Todo es `/api/...` sin `/api/v1/...`. Si mañana cambia la respuesta de un endpo
 | **Topics Kafka creados (kafka-init en compose)** | ✅ **order-shipped + order-delivered** |
 | Consumer en order-service (order-preparing / order-shipped / order-delivered) | ✅ Funcionando |
 | topic order-preparing desde ShipmentUseCase | ✅ Publicado al crear shipment |
+
+---
+
+## Fase 2.5 — Configuración y variables de entorno
+
+> Regla: **cada microservice es dueño de su configuración; los valores compartidos se inyectan desde afuera.**
+> Esta fase va **antes de Kubernetes**, porque en K8s la config se pasa por ConfigMap/Secret y no por `.env`.
+
+### Dos grupos de variables
+
+#### 1. Propias de cada microservice
+
+No se unifican: cada servicio las define y puede cambiarlas sin afectar a los demás.
+
+| Servicio | Variables propias |
+|---|---|
+| `user-service` | `PORT`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DATABASE_URL` |
+| `order-service` | `PORT`, `DB_*`, `KAFKA_BROKER`, `KAFKA_GROUP_ID`, `PRODUCT_SERVICE_URL` |
+| `products-service` | `server.port`, `spring.datasource.*`, `springdoc.*` |
+| `shipment-service` | `server.port`, `spring.datasource.*`, `spring.kafka.*`, `externals.*`, `scheduled.*` |
+
+#### 2. Compartidas (contrato entre servicios)
+
+Tienen que ser **idénticas en todos**. Si cambian en uno solo, el flujo se rompe.
+
+| Variable | Quién la usa | Por qué |
+|---|---|---|
+| `JWT_SECRET` | user (firma), order/products (validan) | mismo secreto para firmar y verificar |
+| `API_KEY` | los 4 | header `X-Middleware-ApiKey` |
+| `DEVICE_ID` | los 4 | header `X-Middleware-DeviceId` |
+| `POSTGRES_PASSWORD` | infra + los 4 | conexión a la base |
+
+### Problema actual
+
+Las 4 compartidas están repetidas en 3 capas:
+
+1. `.env` de `order-service` y `user-service` (gitignoreados).
+2. Defaults hardcodeados en `docker-compose.yml`.
+3. `application.yaml` de products y shipment, **commiteados en Git**.
+
+Eso es lo que hay que ordenar, no toda la configuración.
+
+### Modelo objetivo por entorno
+
+| Entorno | Propias | Compartidas |
+|---|---|---|
+| Dev (`npm run dev` / `mvn spring-boot:run`) | `.env` o yaml de cada micro | `.env` raíz o `shared.env` |
+| Docker Compose | `environment:` de cada servicio | `.env` raíz, sin defaults de secretos |
+| Kubernetes (Fase 3) | ConfigMap por servicio | un Secret compartido (`ecommerce-secrets`) |
+
+Patrón en K8s:
+
+```yaml
+envFrom:
+  - configMapRef: { name: order-service-config }
+  - secretRef:    { name: ecommerce-secrets }
+```
+
+### Decisión pendiente (dev local)
+
+1. **Pragmática:** cada micro mantiene su `.env` completo (repite las 4 compartidas). Simple, pero si una se desincroniza, el JWT falla.
+2. **Limpia:** cada micro tiene solo lo propio y las 4 se cargan de un archivo raíz. Requiere un loader en Node (`dotenv-cli`) y `spring.config.import` en Java.
+
+Recomendación: **2 para Compose y K8s**, **1 para dev** (no complicar el arranque local).
+
+### Pasos concretos
+
+- [ ] Crear `.env.example` raíz (versionado, con valores dummy).
+- [ ] Crear `.env` raíz (real, gitignoreado).
+- [ ] Pasar `JWT_SECRET`, `API_KEY` y `DEVICE_ID` de los yaml de Java a `${VARIABLE}`.
+- [ ] Sacar los defaults de secretos del compose y usar `${VARIABLE:?falta en .env}`.
+- [ ] Documentar en cada servicio qué variables son propias y cuáles compartidas.

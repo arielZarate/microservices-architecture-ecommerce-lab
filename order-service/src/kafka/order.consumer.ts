@@ -13,7 +13,7 @@ class OrderConsumer{
       clientId: 'order-service-consumer',
       brokers: [broker],
     });
-    this.consumer = kafka.consumer({ groupId: 'order-service-group-V3' });
+    this.consumer = kafka.consumer({ groupId: process.env.KAFKA_GROUP_ID || 'order-service-group' });
     this.orderService = orderService;
   }
 

@@ -135,9 +135,13 @@ class OrderServiceImpl implements OrderService {
         }))
       };
 
-  
-      await this.kafkaProducer.publish('order-paid', event);
-      logger.info('KAFKA-EVENTS-> ORDER-PAID ... published with customer: ' + orderSaved.getCustomerName());
+     try {
+        await this.kafkaProducer.publish('order-paid', event);
+        logger.info(`KAFKA-EVENTS-> ORDER-PAID published for order ${orderSaved.getId()}`);
+      } catch (error) {
+        logger.error(`order-paid publish failed for order ${orderSaved.getId()}: ${(error as Error).message}`);
+      }
+     
     }
 
     return orderSaved;
