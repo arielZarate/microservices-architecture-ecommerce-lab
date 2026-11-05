@@ -50,7 +50,7 @@ router.get('/', orderController.listOrder.bind(orderController));
  *       401:
  *         description: Token requerido
  */
-router.get('/my',middleware_security, orderController.myOrders.bind(orderController));
+router.get('/my', orderController.myOrders.bind(orderController));
 
 /**
  * @openapi
@@ -80,7 +80,7 @@ router.get('/my',middleware_security, orderController.myOrders.bind(orderControl
  *       404:
  *         description: Orden no encontrada
  */
-router.get('/:id',middleware_security,orderController.orderById.bind(orderController));
+router.get('/:id',orderController.orderById.bind(orderController));
 
 /**
  * @openapi
