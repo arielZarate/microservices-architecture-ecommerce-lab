@@ -275,13 +275,15 @@ CONTENEDORES de apps (uno por microservicio)
 |---|---|---|---|---|
 | `postgres` | `postgres:17` | 5432 | 1 instancia con las 4 bases | ✅ |
 | `products-service` | build `./products-service` | 8080 | Catálogo de productos | ✅ |
-| `shipment-service` | build `./shipment-service` | 8081 | Envíos + Kafka | ⏳ sin Dockerfile |
-| `order-service` | build `./order-service` | 3000 | Órdenes + Kafka | ⏳ sin Dockerfile |
-| `user-service` | build `./user-service` | 4000 | Usuarios + JWT | ⏳ sin Dockerfile |
-| `kafka` | `apache/kafka:4.3.0` | 9092 | Broker (KRaft) | ✅ |
-| `kafka-init` | `apache/kafka:4.3.0` | — | Crea los topics | ✅ |
+| `shipment-service` | build `./shipment-service` | 8081 | Envíos + Kafka | ✅ |
+| `order-service` | build `./order-service` | 3000 | Órdenes + Kafka | ✅ |
+| `order-service-migrate` | build `./order-service` | — | `prisma migrate deploy` (sale con 0) | ✅ |
+| `user-service` | build `./user-service` | 4000 | Usuarios + JWT | ✅ |
+| `user-service-migrate` | build `./user-service` | — | `prisma migrate deploy` (sale con 0) | ✅ |
+| `kafka` | `apache/kafka:4.3.0` | 9092 | Broker (KRaft) + volumen `kafka-data` | ✅ |
+| `kafka-init` | `apache/kafka:4.3.0` | — | Crea los 4 topics (sale con 0) | ✅ |
 
-Cuando esté completo: **7 contenedores** (1 de DB + 4 de apps + 2 de Kafka).
+Total: **9 contenedores** (1 de DB + 4 de apps + 2 jobs de migración + 2 de Kafka).
 
 ### Cómo se crean las bases de datos
 
@@ -344,9 +346,10 @@ curl http://localhost:8080/api/actuator/health
 ### Notas
 
 - Los scripts de init **no se re-ejecutan** si el volumen ya tiene datos. Para aplicarlos hay que `docker compose down -v` y volver a levantar.
-- Las credenciales deberían vivir en un `.env` (no versionado) + `.env.example` de plantilla.
-- Las bases Node/Prisma usan password `1111` y las Spring `admin`: conviene unificarlas vía `POSTGRES_PASSWORD` al sumar los demás servicios.
-- Kafka hoy anuncia `PLAINTEXT://localhost:9092`, lo que **no** funciona entre contenedores; al sumar order/shipment hay que agregar un listener interno (`kafka-container:9092`).
+- Las credenciales deberían vivir en un `.env` (no versionado) + `.env.example` de plantilla. **Pendiente: Fase 2.5** (ver el final de este README).
+- Las 4 bases usan la misma credencial: `${POSTGRES_USER:-postgres}` / `${POSTGRES_PASSWORD:-admin}`.
+- Kafka tiene **doble listener**: `PLAINTEXT://localhost:9092` para el host e `INTERNAL://kafka-container:29092` para los contenedores. Persiste en el volumen `kafka-data` (`KAFKA_LOG_DIRS`).
+- `order-service` espera `kafka` + `kafka-init` (`condition: service_completed_successfully`) para no quedar sordo si Kafka arranca después.
 
 ---
 
@@ -397,38 +400,39 @@ No se mezclan responsabilidades.
 | `products-service` | Java 21 | `eclipse-temurin:21-jre-alpine` | 8080 |
 | `shipment-service` | Kotlin | `eclipse-temurin:21-jre-alpine` | 8081 |
 
-- [ ] Un `Dockerfile` multi-stage + `.dockerignore` por servicio
+- [x] Un `Dockerfile` multi-stage + `.dockerignore` por servicio
 
-**Criterio de éxito:** las 4 imágenes buildeadas y cada una responde su endpoint de health.
+**Criterio de éxito:** las 4 imágenes buildeadas y cada una responde su endpoint de health. ✅
 
 ---
 
 #### 🥈 FASE 2 — Docker Compose completo (infra + servicios)
 
-##### `docker-compose.yml` (infraestructura) — parcialmente creado
-- Kafka (KRaft) — ya existe ✅
-- PostgreSQL — implementación actual: **1 instancia con 4 bases** (ver [Infraestructura local](#infraestructura-local-docker-compose))
+##### `docker-compose.yml` (infra + servicios en un solo archivo) — ✅ creado
+- Kafka (KRaft) con doble listener y volumen `kafka-data` — ✅
+- PostgreSQL — **1 instancia con 4 bases** (ver [Infraestructura local](#infraestructura-local-docker-compose)) — ✅
   - `postgres` → `products_management`, `shipment_management`, `orders_management`, `users_management` → host :5432
   - *Alternativa (si se necesita aislamiento): 4 instancias separadas, una por servicio.*
-- `kafka-init` — crear **todos** los topics: `order-paid`, `order-preparing`, `order-shipped`, `order-delivered`
+- `kafka-init` — crea **todos** los topics: `order-paid`, `order-preparing`, `order-shipped`, `order-delivered` — ✅
 
 Se ejecuta solo (para desarrollo local con `npm run dev`):
 ```bash
 docker compose up -d
 ```
 
-##### `docker-compose.services.yml` (microservicios)
-- [ ] Los 4 servicios con `build:` apuntando a su Dockerfile
-- [ ] `depends_on` a su DB respectiva + Kafka
-- [ ] Variables de entorno apuntando a **nombres de servicio** (no `localhost`)
-- [ ] Puertos mapeados (4000, 3000, 8080, 8081)
+##### Servicios en el mismo `docker-compose.yml`
+- [x] Los 4 servicios con `build:` apuntando a su Dockerfile
+- [x] `depends_on` a su DB respectiva + Kafka
+- [x] Variables de entorno apuntando a **nombres de servicio** (no `localhost`)
+- [x] Puertos mapeados (4000, 3000, 8080, 8081)
+- [x] Jobs de migración (`prisma migrate deploy`) para user y order
 
-Se ejecuta junto con infra:
+Se ejecuta todo junto:
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.services.yml up -d
+docker compose up -d
 ```
 
-**Criterio de éxito:** stack completo verde con un solo comando y el flujo de pedido funciona end-to-end.
+**Criterio de éxito:** stack completo verde con un solo comando y el flujo de pedido funciona end-to-end. ✅ (validado 2026-11-05)
 
 ---
 
@@ -578,8 +582,8 @@ Lo que aprendas con Minikube y kubectl sirve **exactamente igual** en EKS, AKS o
 
 | Fase | Estado |
 |---|---|
-| FASE 1 — Dockerfiles (4 servicios) | 🟡 `products-service` ✅ · faltan 3 |
-| FASE 2 — Docker Compose completo (infra + servicios) | 🟡 `postgres` + `products-service` ✅ · faltan 3 |
+| FASE 1 — Dockerfiles (4 servicios) | ✅ 4/4 |
+| FASE 2 — Docker Compose completo (infra + servicios) | ✅ Infra + 4 servicios + migraciones |
 | FASE 3 — Kubernetes base (Minikube) | ⏳ Pendiente |
 | FASE 4 — Infra interna en K8s (StatefulSets) | ⏳ Pendiente |
 | FASE 5 — Estabilización del cluster | ⏳ Pendiente |
@@ -587,6 +591,107 @@ Lo que aprendas con Minikube y kubectl sirve **exactamente igual** en EKS, AKS o
 | FASE 7 — GitOps: CI (GitHub Actions) + ArgoCD | ⏳ Pendiente |
 | FASE 8 — Observabilidad (Prom/Grafana/Loki/OTel) | ⏳ Pendiente |
 | Track paralelo — Tests | ⏳ Pendiente |
+
+---
+
+## Estado actual y pendientes (2026-11-05)
+
+> Este README es la **fuente única de verdad**. Las notas de sesiones anteriores
+> (`~/.config/opencode/context/microservices-architecture-ecommerce-lab/`) fueron absorbidas acá.
+
+### Últimos commits
+
+- `a8f5f8e` modify docker-compose and service and yaml
+- `965bb3f` modify security token un route order
+
+### Flujo end-to-end validado
+
+Pago disparado manualmente con `PUT /api/order/{id}/status` → `PAID`:
+
+| Hora | Evento |
+|---|---|
+| 23:21:17 | Imagen nueva de `order-service` (rebuild aplicado) |
+| 23:21:35 | Arranca con `groupId: order-service-group` |
+| 23:21:48 | `GET /api/order/:id` → 200 **sin token** |
+| 23:22:28 | `PUT PAID` → publica `order-paid` |
+| 23:22:29 | shipment consume `order-paid`, crea shipment + address, publica `order-preparing` |
+| 23:22:29 | order consume `order-preparing` → PREPARING |
+| 23:24:00 | cron shipment PREPARING → SHIPPED → `order-shipped` |
+| 23:24:00 | order consume → SHIPPED |
+| 23:24:30 | cron shipment SHIPPED → DELIVERED → `order-delivered` |
+| 23:24:30 | order consume → DELIVERED |
+
+Estado final en DB para la orden `6518a415-98f9-4175-9322-8639dfdc43ae`:
+`Order.status = DELIVERED` · `shipment.status = DELIVERED` (mismo UUID) ·
+`shipment_item`: product 5, qty 2, unitPrice 695 · `address`: "los sirios 6331", Cerro, Córdoba, 5000.
+Sin duplicados, sin replay, sin rebalanceos.
+
+### Seguridad de endpoints (order-service)
+
+| Endpoint | Protección |
+|---|---|
+| `GET /api/order` | ninguna |
+| `GET /api/order/:id` | ninguna |
+| `GET /api/order/my` | JWT (lo necesita por `userContext`) |
+| `POST /api/order` | JWT |
+| `PUT /api/order/:id/status` | API Key + Device ID (`validateHeader`), sin JWT |
+
+> `GET /my` sin JWT rompe con `User context is missing`; se dejó con JWT.
+
+### Pendientes priorizados
+
+#### A. Fase 2.5 — `.env`, secretos y variables
+- [ ] **Decisión A:** ¿un `.env` raíz y borrar los `.env` de servicio?
+- [ ] **Decisión B:** ¿sacar defaults de `JWT_SECRET` / `API_KEY` / `DEVICE_ID` del compose?
+- [ ] **Decisión C:** ¿Fase 2.5 ahora o dentro de Fase 3?
+- [ ] Crear `.env.example` raíz (versionado, valores dummy) y `.env` raíz (gitignoreado).
+- [ ] Pasar `JWT_SECRET`, `API_KEY`, `DEVICE_ID` de los yaml Java a `${VARIABLE}`.
+- [ ] Sacar defaults de secretos del compose → `${VARIABLE:?falta en .env}`.
+
+#### B. Fixes de código en order-service (bajo riesgo)
+- [ ] Agregar `OrderPreparingEvent` a la unión `OrderStatusEvent` (`order-event.interface.ts:26`).
+- [ ] Mensaje de error en `create` usa `products[index]` en vez de `item.getProductId()`.
+- [ ] Quitar `&& orderSaved.getId()` redundante.
+
+#### C. Decisiones arquitectónicas abiertas
+- [ ] `CANCELLED` no se propaga a shipment: ¿topic `order-cancelled` + consumer, o prohibir cancelar post-`PAID`?
+      (La constraint de `shipment.status` solo acepta `PREPARING | SHIPPED | DELIVERED`.)
+- [ ] `order-paid` se pierde en silencio si falla el publish: ¿outbox pattern o deuda documentada?
+- [ ] TOCTOU en `updateStatus` (dos PUT concurrentes pueden publicar `order-paid` dos veces).
+- [ ] `OrderStatusDTO` no incluye `DELIVERED` (`status.order.dto.ts`).
+- [ ] Producer usa `key: crypto.randomUUID()` en vez de `orderId` (importa con >1 partición).
+- [ ] `tracking_code` queda NULL: definir si se genera.
+
+#### D. Fase 3 — Kubernetes / Minikube
+- [ ] `minikube start --addons=ingress` · namespace `lab`
+- [ ] Deployment + Service + ConfigMap + Secret + Ingress por servicio
+- [ ] `minikube image load` de las 4 imágenes
+- [ ] E2E de un pedido a través del Ingress, todo con `kubectl apply`
+
+#### E. Limpieza menor
+- [ ] 5 órdenes en `PENDING` de pruebas anteriores (22:46 y 23:05): borrar o dejar como historial.
+
+### Histórico de sesiones (absorbido)
+
+| Fecha | Tema | Resultado |
+|---|---|---|
+| 2026-06-04 | Análisis arquitectónico | Diagnóstico de lo bueno/crítico/discutible y prioridades |
+| 2026-09-02 | Fix shipment → Kafka/WebClient | Comunicación shipment→user resuelta |
+| 2026-09-02 | Shipment address + API Key | Address client completo con headers internos |
+| 2026-09-02 | Kafka + ShedLock + cron | Transiciones automáticas con lock distribuido |
+| 2026-09-02 | Shipment status cron | PREPARING → SHIPPED → DELIVERED |
+| 2026-10-16 | Plan de despliegue DevOps | Arquitectura objetivo Docker → Minikube → GitOps |
+| 2026-10-19 | Dockerización user-service | Fase 1 aplicada a user-service |
+| 2026-10-30 | Dockerización order-service + Prisma/Kafka | Fase 1 aplicada a order-service |
+| 2026-10-30 | Cierre Fase 1/2 + P1–P7 + Fase 2.5 | Compose único, decisiones pendientes |
+| 2026-10-31 → 2026-11-05 | Revisión order-service y estado | P1–P6 cerrados, E2E validado, seguridad de endpoints ajustada |
+
+### Conexiones de desarrollo
+
+- PostgreSQL: `localhost:5432` · user `postgres` · password `admin`
+- DBeaver: conexión guardada `postgres_container`
+- Kafka: `localhost:9092` (host) / `kafka-container:29092` (interno)
+- Servicios: user `:4000`, order `:3000`, products `:8080`, shipment `:8081`
 
 ---
 
