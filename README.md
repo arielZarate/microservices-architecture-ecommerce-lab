@@ -229,13 +229,23 @@ X-Middleware-DeviceId: idDevice321567Device
 ```
 microservices-architecture-ecommerce-lab/
 │
-├── user-service/              # Node/Express + TypeScript + Prisma
-├── products-service/          # Java 21 + Spring Boot / Hexagonal
-├── order-service/             # Node/Express + TypeScript + Prisma + KafkaJS
-├── shipment-service/          # Kotlin + Spring Boot 4.0.6 + Kafka
-├── docker/
-│   └── postgres/init/         # scripts de init: crean las 4 bases
-├── docker-compose.yml         # PostgreSQL + microservicios + Kafka (KRaft)
+├── microservices/                  # código de los servicios
+│   ├── products-service/
+│   ├── order-service/
+│   ├── user-service/
+│   └── shipment-service/
+│
+├── infra/
+│   └── docker/postgres/init/       # 01-databases.sql: crea las 4 bases
+│
+├── k8s/                            # Fase 3 (en construcción)
+│   ├── config/
+│   └── services/
+│
+├── docs/
+│   └── configuracion-y-entornos.md # Fase 2.5: .env, ConfigMap/Secret
+│
+├── docker-compose.yml              # entorno local: Postgres + Kafka + servicios
 └── README.md
 ```
 
@@ -274,12 +284,12 @@ CONTENEDORES de apps (uno por microservicio)
 | Contenedor | Imagen | Puerto host | Rol | Estado |
 |---|---|---|---|---|
 | `postgres` | `postgres:17` | 5432 | 1 instancia con las 4 bases | ✅ |
-| `products-service` | build `./products-service` | 8080 | Catálogo de productos | ✅ |
-| `shipment-service` | build `./shipment-service` | 8081 | Envíos + Kafka | ✅ |
-| `order-service` | build `./order-service` | 3000 | Órdenes + Kafka | ✅ |
-| `order-service-migrate` | build `./order-service` | — | `prisma migrate deploy` (sale con 0) | ✅ |
-| `user-service` | build `./user-service` | 4000 | Usuarios + JWT | ✅ |
-| `user-service-migrate` | build `./user-service` | — | `prisma migrate deploy` (sale con 0) | ✅ |
+| `products-service` | build `./microservices/products-service` | 8080 | Catálogo de productos | ✅ |
+| `shipment-service` | build `./microservices/shipment-service` | 8081 | Envíos + Kafka | ✅ |
+| `order-service` | build `./microservices/order-service` | 3000 | Órdenes + Kafka | ✅ |
+| `order-service-migrate` | build `./microservices/order-service` | — | `prisma migrate deploy` (sale con 0) | ✅ |
+| `user-service` | build `./microservices/user-service` | 4000 | Usuarios + JWT | ✅ |
+| `user-service-migrate` | build `./microservices/user-service` | — | `prisma migrate deploy` (sale con 0) | ✅ |
 | `kafka` | `apache/kafka:4.3.0` | 9092 | Broker (KRaft) + volumen `kafka-data` | ✅ |
 | `kafka-init` | `apache/kafka:4.3.0` | — | Crea los 4 topics (sale con 0) | ✅ |
 
@@ -288,11 +298,11 @@ Total: **9 contenedores** (1 de DB + 4 de apps + 2 jobs de migración + 2 de Kaf
 ### Cómo se crean las bases de datos
 
 - La imagen oficial de Postgres ejecuta todo `.sql` de `/docker-entrypoint-initdb.d/` **solo la primera vez** (volumen vacío).
-- Las 4 bases se crean en `docker/postgres/init/01-databases.sql`.
-- El compose monta esa carpeta: `./docker/postgres/init:/docker-entrypoint-initdb.d:ro`.
+- Las 4 bases se crean en `infra/docker/postgres/init/01-databases.sql`.
+- El compose monta esa carpeta: `./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro`.
 
 ```sql
--- docker/postgres/init/01-databases.sql
+-- infra/docker/postgres/init/01-databases.sql
 CREATE DATABASE products_management;
 CREATE DATABASE shipment_management;
 CREATE DATABASE orders_management;
@@ -702,16 +712,16 @@ Sin duplicados, sin replay, sin rebalanceos.
 docker compose up -d
 
 # Order service
-cd order-service && npm run dev
+cd microservices/order-service && npm run dev
 
 # User service
-cd user-service && npm run dev
+cd microservices/user-service && npm run dev
 
 # Shipment service
-cd shipment-service && ./mvnw spring-boot:run
+cd microservices/shipment-service && ./mvnw spring-boot:run
 
 # Products service
-cd products-service && ./mvnw spring-boot:run
+cd microservices/products-service && ./mvnw spring-boot:run
 ```
 
 ---
