@@ -5,6 +5,9 @@ node_modules/
 dist/
 target/
 
+# Clientes generados (prisma generate lo recrea en build)
+generated/
+
 # Entorno (secretos)
 .env
 .env.*
