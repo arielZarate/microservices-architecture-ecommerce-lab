@@ -863,6 +863,8 @@ Todo es `/api/...` sin `/api/v1/...`. Si mañana cambia la respuesta de un endpo
 
 ## Fase 2.5 — Configuración y variables de entorno
 
+> 📄 Análisis completo y plan detallado: [`docs/configuracion-y-entornos.md`](docs/configuracion-y-entornos.md)
+
 > Regla: **cada microservice es dueño de su configuración; los valores compartidos se inyectan desde afuera.**
 > Esta fase va **antes de Kubernetes**, porque en K8s la config se pasa por ConfigMap/Secret y no por `.env`.
 
