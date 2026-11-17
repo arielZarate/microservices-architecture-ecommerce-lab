@@ -8,27 +8,12 @@ spring:
   application:
     name: shipment-service
 
-  #kafka
-  kafka:
-    bootstrap-servers: localhost:9092
-    consumer:
-      group-id: shipment-service-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "*"
-        spring.json.value.default.type: com.arielzarate.shipment.interfaces.kafka.dto.OrderPaidEvent
-        spring.json.use.type.headers: false
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
   #database
   datasource:
-    url: jdbc:postgresql://localhost:5432/shipment_management
-    username: postgres
-    password: admin
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -40,29 +25,41 @@ spring:
       hibernate:
         format_sql: true
 
-# documentation
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
+
+  #kafka
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: shipment-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: com.arielzarate.shipment.interfaces.kafka.dto.OrderPaidEvent
+        spring.json.use.type.headers: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer     
+
+
 
 
 # External clients
 externals:
   user-client:
-    host: http://localhost:4000
+    host: ${EXTERNALS_USER_CLIENT_HOST}
     path: /api/users
     timeout: 5000
   address-client:
-    host: http://localhost:4000
+    host: ${EXTERNALS_ADDRESS_CLIENT_HOST}
     path: /api/address
     timeout: 5000
 
 # Api key
 external:
-  api-key: idApp1237897key
-  device-id: idDevice321567Device
+  api-key: ${EXTERNAL_API_KEY}
+  device-id: ${EXTERNAL_DEVICE_ID}
 
 
 # scheduled
@@ -72,6 +69,13 @@ scheduled:
   shipped-to-delivered:
     period: "30 */2 * * * *"
 
+
+# documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
 
 #Monitoring - metrics
