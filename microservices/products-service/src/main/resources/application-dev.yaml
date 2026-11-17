@@ -1,0 +1,56 @@
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+
+spring:
+  application:
+    name: products-service
+
+  #database
+  datasource:
+    url: jdbc:postgresql://localhost:5432/products_management
+    username: postgres
+     # misma password que en el archivo .env , porque solo es un lab pero deberia ser diferente para cada entorno
+    password: admin
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    #database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+# documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+
+# Api key
+external:
+  api-key: ${EXTERNAL_API_KEY:idAppXTW37key}
+  device-id: ${EXTERNAL_DEVICE_ID:idDeviceZJA7Device}
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:superSecretKeyForJwt!!!}
+
+
+#Monitoring - metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

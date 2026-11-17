@@ -1,0 +1,22 @@
+
+# Las variables de entorno se definen en este archivo y se pueden usar en la configuración de Spring Boot.  
+# y otros microservicios como orders-service, payments-service, etc.
+
+
+# EXTERNAL_API_KEY es la clave de API utilizada para autenticar solicitudes a servicios externos.
+EXTERNAL_API_KEY=idApp1237897key
+EXTERNAL_DEVICE_ID=idDevice321567Device
+
+# JWT_SECRET es la clave secreta utilizada para firmar y verificar los tokens JWT.
+JWT_SECRET=sapee2026superSecretKeyForJwt    
+
+
+
+# Las variables de base de datos se definen aquí para que puedan ser utilizadas en la configuración de Spring Boot y otros microservicios.
+# SPRING_DATASOURCE_URL es la URL de conexión a la base de datos.
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/products_management
+# SPRING_DATASOURCE_USERNAME es el nombre de usuario para conectarse a la base de datos.
+SPRING_DATASOURCE_USERNAME=postgres
+# SPRING_DATASOURCE_PASSWORD es la contraseña para conectarse a la base de datos.
+SPRING_DATASOURCE_PASSWORD= admin
+
