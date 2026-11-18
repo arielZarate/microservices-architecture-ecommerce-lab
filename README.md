@@ -56,8 +56,8 @@ La comunicación se divide en dos tipos:
 Toda comunicación interna (service-to-service) usa dos headers:
 
 ```
-X-Middleware-ApiKey: idApp1237897key
-X-Middleware-DeviceId: idDevice321567Device
+X-Middleware-ApiKey: idAppXTW37key
+X-Middleware-DeviceId: idDeviceZJA7Device
 ```
 
 El micro que recibe valida ambos antes de procesar la request.
@@ -200,8 +200,8 @@ POST /api/auth/login → { token }
 
 ### API Key (para comunicación interna entre micros)
 ```
-X-Middleware-ApiKey: idApp1237897key
-X-Middleware-DeviceId: idDevice321567Device
+X-Middleware-ApiKey: idAppXTW37key
+X-Middleware-DeviceId: idDeviceZJA7Device
 → Se valida en endpoints internos:
   - GET /api/address/:customerId (user-service)
   - PUT /api/order/:id/status (order-service)
@@ -290,7 +290,7 @@ CONTENEDORES de apps (uno por microservicio)
 | `order-service-migrate` | build `./microservices/order-service` | — | `prisma migrate deploy` (sale con 0) | ✅ |
 | `user-service` | build `./microservices/user-service` | 4000 | Usuarios + JWT | ✅ |
 | `user-service-migrate` | build `./microservices/user-service` | — | `prisma migrate deploy` (sale con 0) | ✅ |
-| `kafka` | `apache/kafka:4.3.0` | 9092 | Broker (KRaft) + volumen `kafka-data` | ✅ |
+| `kafka-container` | `apache/kafka:4.3.0` | 9092 | Broker (KRaft) + volumen `kafka-data` | ✅ |
 | `kafka-init` | `apache/kafka:4.3.0` | — | Crea los 4 topics (sale con 0) | ✅ |
 
 Total: **9 contenedores** (1 de DB + 4 de apps + 2 jobs de migración + 2 de Kafka).
@@ -313,13 +313,15 @@ CREATE DATABASE users_management;
 
 Dentro de la red `ecommerce` de compose, el host de la DB es el **nombre del servicio** (`postgres`), **no** `localhost` (dentro de un contenedor, `localhost` es el contenedor mismo).
 
-Las credenciales/URL se inyectan por variables de entorno y **sobreescriben**, por precedencia, los valores del `application.yaml` (relaxed binding):
+Las credenciales/URL se inyectan por variables de entorno y **completan** los placeholders `${VARIABLE}` del `application.yaml` (relaxed binding):
 
 | Variable de entorno | Propiedad de Spring | Equivalente en Node |
 |---|---|---|
-| `SPRING_DATASOURCE_URL` | `spring.datasource.url` | `DATABASE_URL` |
-| `SPRING_DATASOURCE_USERNAME` | `spring.datasource.username` | `DB_USER` |
-| `SPRING_DATASOURCE_PASSWORD` | `spring.datasource.password` | (va en la URL) |
+| `SPRING_DATASOURCE_URL` | `spring.datasource.url` | `DATABASE_URL` (solo CLI de Prisma) |
+| `SPRING_DATASOURCE_USERNAME` | `spring.datasource.username` | `DATASOURCE_USERNAME` |
+| `SPRING_DATASOURCE_PASSWORD` | `spring.datasource.password` | `DATASOURCE_PASSWORD` |
+
+> Los Node **no** usan una URL: arman la conexión con campos sueltos vía `PrismaPg`. `DATABASE_URL` existe solo para la CLI (`prisma migrate`/`generate`), que la lee de `prisma.config.ts`.
 
 Ejemplo (products-service en `docker-compose.yml`):
 
@@ -329,12 +331,14 @@ Ejemplo (products-service en `docker-compose.yml`):
         condition: service_healthy       # no arranca hasta que la DB esté lista
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/products_management
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
     networks: [ ecommerce ]
 ```
 
-El `application.yaml` conserva los defaults de desarrollo (`localhost:5432`) para correr desde el IDE; el compose los pisa en el contenedor.
+Las credenciales salen del `.env` raíz, **sin defaults** en el compose: si falta la variable, el compose falla en vez de arrancar con un valor inventado.
+
+El `application.yaml` no tiene valores: solo `${VARIABLE}`. Los valores de desarrollo (`localhost:5432`) viven en `application-dev.yaml`, que es el que se activa al correr desde el IDE con el perfil `dev`.
 
 ### Comandos útiles
 
@@ -356,8 +360,8 @@ curl http://localhost:8080/api/actuator/health
 ### Notas
 
 - Los scripts de init **no se re-ejecutan** si el volumen ya tiene datos. Para aplicarlos hay que `docker compose down -v` y volver a levantar.
-- Las credenciales deberían vivir en un `.env` (no versionado) + `.env.example` de plantilla. **Pendiente: Fase 2.5** (ver el final de este README).
-- Las 4 bases usan la misma credencial: `${POSTGRES_USER:-postgres}` / `${POSTGRES_PASSWORD:-admin}`.
+- Las credenciales viven en un `.env` raíz (no versionado) + `.env.example` de plantilla (versionado). ✅ Fase 2.5 completada (ver el final de este README).
+- Las 4 bases usan la misma credencial: `${SPRING_DATASOURCE_USERNAME}` / `${SPRING_DATASOURCE_PASSWORD}` desde el `.env` raíz.
 - Kafka tiene **doble listener**: `PLAINTEXT://localhost:9092` para el host e `INTERNAL://kafka-container:29092` para los contenedores. Persiste en el volumen `kafka-data` (`KAFKA_LOG_DIRS`).
 - `order-service` espera `kafka` + `kafka-init` (`condition: service_completed_successfully`) para no quedar sordo si Kafka arranca después.
 
@@ -473,7 +477,7 @@ docker compose up -d
 
 - [ ] Readiness / Liveness / Startup probes (Node: `/health`, Spring: `actuator/health`)
 - [ ] `resources.requests` y `limits` por contenedor
-- [ ] Config centralizada: `ConfigMap` por ambiente + `Secret` (JWT_SECRET, API_KEY, DEVICE_ID)
+- [ ] Config centralizada: `ConfigMap` por ambiente + `Secret` (`JWT_SECRET`, `EXTERNAL_API_KEY`, `EXTERNAL_DEVICE_ID`, credenciales de DB)
 - [ ] Rollouts seguros (strategy, no downtime)
 
 **Criterio de éxito:** un pod killado se autorecupera y el rollout no corta tráfico.
@@ -587,6 +591,7 @@ Lo que aprendas con Minikube y kubectl sirve **exactamente igual** en EKS, AKS o
 | Productor Kafka (OrderShipped / OrderDelivered) | ✅ Funcionando |
 | Consumer en order-service (order-preparing / order-shipped / order-delivered) | ✅ Funcionando |
 | topic order-preparing desde ShipmentUseCase | ✅ Publicado al crear shipment |
+| Config por entorno (Fase 2.5) | ✅ `.env` raíz + por servicio, `${VAR}` en yaml, `validateEnv()` |
 
 ### Infraestructura (Docker → Minikube → GitOps)
 
@@ -594,6 +599,7 @@ Lo que aprendas con Minikube y kubectl sirve **exactamente igual** en EKS, AKS o
 |---|---|
 | FASE 1 — Dockerfiles (4 servicios) | ✅ 4/4 |
 | FASE 2 — Docker Compose completo (infra + servicios) | ✅ Infra + 4 servicios + migraciones |
+| FASE 2.5 — Configuración y variables de entorno | ✅ `.env` + `.env.example`; los ConfigMap/Secret son de Fase 3 |
 | FASE 3 — Kubernetes base (Minikube) | ⏳ Pendiente |
 | FASE 4 — Infra interna en K8s (StatefulSets) | ⏳ Pendiente |
 | FASE 5 — Estabilización del cluster | ⏳ Pendiente |
@@ -604,15 +610,17 @@ Lo que aprendas con Minikube y kubectl sirve **exactamente igual** en EKS, AKS o
 
 ---
 
-## Estado actual y pendientes (2026-11-05)
+## Estado actual y pendientes (2026-11-18)
 
 > Este README es la **fuente única de verdad**. Las notas de sesiones anteriores
 > (`~/.config/opencode/context/microservices-architecture-ecommerce-lab/`) fueron absorbidas acá.
 
 ### Últimos commits
 
-- `a8f5f8e` modify docker-compose and service and yaml
-- `965bb3f` modify security token un route order
+- `dd7a21c` fix: JWT secret con longitud mínima para HS256
+- `769dbae` Merge PR #27 — entornos de order y user
+- `de3b891` entornos de shipment-service
+- `bd63e50` refactor entorno products-service
 
 ### Flujo end-to-end validado
 
@@ -650,13 +658,14 @@ Sin duplicados, sin replay, sin rebalanceos.
 
 ### Pendientes priorizados
 
-#### A. Fase 2.5 — `.env`, secretos y variables
-- [ ] **Decisión A:** ¿un `.env` raíz y borrar los `.env` de servicio?
-- [ ] **Decisión B:** ¿sacar defaults de `JWT_SECRET` / `API_KEY` / `DEVICE_ID` del compose?
-- [ ] **Decisión C:** ¿Fase 2.5 ahora o dentro de Fase 3?
-- [ ] Crear `.env.example` raíz (versionado, valores dummy) y `.env` raíz (gitignoreado).
-- [ ] Pasar `JWT_SECRET`, `API_KEY`, `DEVICE_ID` de los yaml Java a `${VARIABLE}`.
-- [ ] Sacar defaults de secretos del compose → `${VARIABLE:?falta en .env}`.
+#### A. Fase 2.5 — `.env`, secretos y variables ✅
+- [x] **Decisión A:** `.env` raíz para Compose **y** `.env` por servicio para `npm run dev` (Spring no lee `.env`; Compose solo interpola los `${VAR}` del yaml).
+- [x] **Decisión B:** el compose queda **sin defaults** de secretos.
+- [x] **Decisión C:** Fase 2.5 resuelta antes de empezar Fase 3.
+- [x] `.env.example` raíz + `.env` raíz, y `.env.example` propio en order y user.
+- [x] `JWT_SECRET`, `EXTERNAL_API_KEY`, `EXTERNAL_DEVICE_ID` por `${VARIABLE}` en los yaml Java; los valores de dev viven en `application-dev.yaml`.
+- [x] Rename en Node: `DB_*` → `DATASOURCE_*`, `API_KEY` / `DEVICE_ID` → `EXTERNAL_*`.
+- [x] `src/config/env.ts` + `validateEnv()` en order y user (falla al arrancar si falta una variable).
 
 #### B. Fixes de código en order-service (bajo riesgo)
 - [ ] Agregar `OrderPreparingEvent` a la unión `OrderStatusEvent` (`order-event.interface.ts:26`).
@@ -695,6 +704,7 @@ Sin duplicados, sin replay, sin rebalanceos.
 | 2026-10-30 | Dockerización order-service + Prisma/Kafka | Fase 1 aplicada a order-service |
 | 2026-10-30 | Cierre Fase 1/2 + P1–P7 + Fase 2.5 | Compose único, decisiones pendientes |
 | 2026-10-31 → 2026-11-05 | Revisión order-service y estado | P1–P6 cerrados, E2E validado, seguridad de endpoints ajustada |
+| 2026-11-17 → 2026-11-18 | Fase 2.5 cerrada | `.env.example` raíz + order + user, `${VAR}` en yaml, `validateEnv()`, fix JWT 32 bytes |
 
 ### Conexiones de desarrollo
 
@@ -708,6 +718,11 @@ Sin duplicados, sin replay, sin rebalanceos.
 ## Comandos (desarrollo local)
 
 ```bash
+# Variables de entorno (una vez)
+cp .env.example .env                      # raíz: lo lee docker compose
+cp microservices/order-service/.env.example microservices/order-service/.env
+cp microservices/user-service/.env.example  microservices/user-service/.env
+
 # Iniciar Kafka
 docker compose up -d
 
@@ -825,7 +840,7 @@ Node.js usa Prisma Migrations (versionadas, archivos SQL). JVM usa `ddl-auto: up
 Todo es `/api/...` sin `/api/v1/...`. Si mañana cambia la respuesta de un endpoint, se rompen todos los clientes.
 
 **5. JWT secret hardcodeado en `.env`**
-`JWT_SECRET=sapee2026superSecretKeyForJwt256bits!!` está en 3 archivos distintos. En un entorno real, esto va a un vault.
+`JWT_SECRET=sapee2026superSecretKeyForJwt256bits!!` está repetido en el `.env` raíz y en el de cada servicio. En un entorno real, esto va a un vault.
 
 ---
 
@@ -837,7 +852,7 @@ Todo es `/api/...` sin `/api/v1/...`. Si mañana cambia la respuesta de un endpo
 4. **Agregar correlationId** a los logs (middleware que genere UUID por request)
 5. **Corregir los typos** en nombres de archivos y packages
 6. **Migration strategy**: cambiar `ddl-auto: update` por Flyway en al menos un servicio
-7. **Dockerizar los servicios** para poder levantar el stack completo con un solo comando
+7. ✅ ~~**Dockerizar los servicios**~~ → 4 Dockerfiles + compose completo
 
 ---
 
@@ -865,15 +880,15 @@ Todo es `/api/...` sin `/api/v1/...`. Si mañana cambia la respuesta de un endpo
 | **Cron scheduler PREPARING→SHIPPED→DELIVERED** | ✅ **Funcionando con ShedLock** |
 | **Productor Kafka (order-shipped / order-delivered)** | ✅ **Funcionando** |
 | **ShedLock reemplaza StepLock manual** | ✅ **Implementado** |
-| **Topics Kafka creados (kafka-init en compose)** | ✅ **order-shipped + order-delivered** |
+| **Topics Kafka creados (kafka-init en compose)** | ✅ **order-paid + order-preparing + order-shipped + order-delivered** |
 | Consumer en order-service (order-preparing / order-shipped / order-delivered) | ✅ Funcionando |
 | topic order-preparing desde ShipmentUseCase | ✅ Publicado al crear shipment |
 
 ---
 
-## Fase 2.5 — Configuración y variables de entorno
+## Fase 2.5 — Configuración y variables de entorno ✅
 
-> 📄 Análisis completo y plan detallado: [`docs/configuracion-y-entornos.md`](docs/configuracion-y-entornos.md)
+> ✅ **Completada (2026-11-18).** El antiguo `docs/configuracion-y-entornos.md` fue absorbido por esta sección y ya no existe.
 
 > Regla: **cada microservice es dueño de su configuración; los valores compartidos se inyectan desde afuera.**
 > Esta fase va **antes de Kubernetes**, porque en K8s la config se pasa por ConfigMap/Secret y no por `.env`.
@@ -886,10 +901,12 @@ No se unifican: cada servicio las define y puede cambiarlas sin afectar a los de
 
 | Servicio | Variables propias |
 |---|---|
-| `user-service` | `PORT`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DATABASE_URL` |
-| `order-service` | `PORT`, `DB_*`, `KAFKA_BROKER`, `KAFKA_GROUP_ID`, `PRODUCT_SERVICE_URL` |
-| `products-service` | `server.port`, `spring.datasource.*`, `springdoc.*` |
-| `shipment-service` | `server.port`, `spring.datasource.*`, `spring.kafka.*`, `externals.*`, `scheduled.*` |
+| `user-service` | `PORT`, `DATASOURCE_HOST`, `DATASOURCE_PORT`, `DATASOURCE_USERNAME`, `DATASOURCE_PASSWORD`, `DATASOURCE_NAME_DATABASE`, `DATABASE_URL` (solo CLI de Prisma) |
+| `order-service` | `PORT`, `DATASOURCE_*`, `DATABASE_URL` (solo CLI), `KAFKA_BROKER`, `KAFKA_GROUP_ID`, `PRODUCT_SERVICE_HOST`, `TIMEOUT_MS` |
+| `products-service` | `SPRING_DATASOURCE_URL`, `server.port`, `springdoc.*` |
+| `shipment-service` | `SPRING_DATASOURCE_URL`, `SPRING_KAFKA_BOOTSTRAP_SERVERS`, `EXTERNALS_USER_CLIENT_HOST`, `EXTERNALS_ADDRESS_CLIENT_HOST`, `server.port`, `scheduled.*` |
+
+> `DATASOURCE_USERNAME` / `DATASOURCE_PASSWORD` (Node) y `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` (Java + Postgres) llevan **el mismo valor**, pero con el nombre que espera cada stack.
 
 #### 2. Compartidas (contrato entre servicios)
 
@@ -897,28 +914,29 @@ Tienen que ser **idénticas en todos**. Si cambian en uno solo, el flujo se romp
 
 | Variable | Quién la usa | Por qué |
 |---|---|---|
-| `JWT_SECRET` | user (firma), order/products (validan) | mismo secreto para firmar y verificar |
-| `API_KEY` | los 4 | header `X-Middleware-ApiKey` |
-| `DEVICE_ID` | los 4 | header `X-Middleware-DeviceId` |
-| `POSTGRES_PASSWORD` | infra + los 4 | conexión a la base |
+| `JWT_SECRET` | user (firma), order/products (validan) | mismo secreto para firmar y verificar. **≥ 32 bytes**: jjwt rechaza HS256 con menos |
+| `EXTERNAL_API_KEY` | los 4 | header `X-Middleware-ApiKey` |
+| `EXTERNAL_DEVICE_ID` | los 4 | header `X-Middleware-DeviceId` |
+| `SPRING_DATASOURCE_USERNAME` | infra + los 4 | conexión a PostgreSQL |
+| `SPRING_DATASOURCE_PASSWORD` | infra + los 4 | conexión a PostgreSQL |
 
-### Problema actual
+### Estado: resuelto
 
-Las 4 compartidas están repetidas en 3 capas:
+Antes las compartidas estaban repetidas en tres capas, con defaults hardcodeados. Ahora:
 
-1. `.env` de `order-service` y `user-service` (gitignoreados).
-2. Defaults hardcodeados en `docker-compose.yml`.
-3. `application.yaml` de products y shipment, **commiteados en Git**.
-
-Eso es lo que hay que ordenar, no toda la configuración.
+| Capa | Cómo queda |
+|---|---|
+| Dev local | `.env` de cada servicio (gitignoreado) + `.env.example` versionado |
+| Docker Compose | `.env` raíz (gitignoreado) + `.env.example`; el compose **no tiene defaults de secretos** |
+| Java | `application.yaml` solo `${VAR}` sin default; los valores de dev viven en `application-dev.yaml` |
 
 ### Modelo objetivo por entorno
 
 | Entorno | Propias | Compartidas |
 |---|---|---|
-| Dev (`npm run dev` / `mvn spring-boot:run`) | `.env` o yaml de cada micro | `.env` raíz o `shared.env` |
-| Docker Compose | `environment:` de cada servicio | `.env` raíz, sin defaults de secretos |
-| Kubernetes (Fase 3) | ConfigMap por servicio | un Secret compartido (`ecommerce-secrets`) |
+| Dev (`npm run dev` / `mvn spring-boot:run`) | `.env` o `application-dev.yaml` de cada micro | repetidas en el `.env` de cada micro |
+| Docker Compose | `environment:` de cada servicio | `.env` raíz |
+| Kubernetes (Fase 3) | ConfigMap por servicio | Secret `ecommerce-secrets` |
 
 Patrón en K8s:
 
@@ -928,17 +946,14 @@ envFrom:
   - secretRef:    { name: ecommerce-secrets }
 ```
 
-### Decisión pendiente (dev local)
+> Ojo: `envFrom` no renombra claves. Los Node leen `DATASOURCE_USERNAME` y Spring lee `SPRING_DATASOURCE_USERNAME`, así que las credenciales de DB van con `env:` + `secretKeyRef:` explícito en los servicios Node.
 
-1. **Pragmática:** cada micro mantiene su `.env` completo (repite las 4 compartidas). Simple, pero si una se desincroniza, el JWT falla.
-2. **Limpia:** cada micro tiene solo lo propio y las 4 se cargan de un archivo raíz. Requiere un loader en Node (`dotenv-cli`) y `spring.config.import` en Java.
+### Pasos concretos ✅
 
-Recomendación: **2 para Compose y K8s**, **1 para dev** (no complicar el arranque local).
-
-### Pasos concretos
-
-- [ ] Crear `.env.example` raíz (versionado, con valores dummy).
-- [ ] Crear `.env` raíz (real, gitignoreado).
-- [ ] Pasar `JWT_SECRET`, `API_KEY` y `DEVICE_ID` de los yaml de Java a `${VARIABLE}`.
-- [ ] Sacar los defaults de secretos del compose y usar `${VARIABLE:?falta en .env}`.
-- [ ] Documentar en cada servicio qué variables son propias y cuáles compartidas.
+- [x] Crear `.env.example` raíz (versionado, con valores de lab).
+- [x] Crear `.env` raíz (real, gitignoreado).
+- [x] Pasar `JWT_SECRET`, `EXTERNAL_API_KEY` y `EXTERNAL_DEVICE_ID` de los yaml de Java a `${VARIABLE}`.
+- [x] Sacar los defaults de secretos del compose y resolverlos desde el `.env` raíz.
+- [x] Documentar en cada servicio qué variables son propias y cuáles compartidas (`.env.example` de cada uno).
+- [x] Renombrar en los Node `DB_*` → `DATASOURCE_*` y `API_KEY` / `DEVICE_ID` → `EXTERNAL_*`.
+- [x] Agregar `src/config/env.ts` + `validateEnv()` en order y user.
