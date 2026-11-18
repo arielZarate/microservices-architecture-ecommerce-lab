@@ -2,6 +2,9 @@ import 'dotenv/config';
 import app from './app.js';
 import prisma from './lib/prisma.js';
 import logger from './config/logger.js';
+import { validateEnv } from './config/env.js';
+
+validateEnv();
 
 const PORT = process.env.PORT || 4000;
 

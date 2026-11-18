@@ -11,9 +11,9 @@ spring:
 
   #database
   datasource:
-    url: jdbc:postgresql://localhost:5432/products_management
-    username: postgres
-    password: admin
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -36,12 +36,12 @@ springdoc:
 
 # Api key
 external:
-  api-key: idApp1237897key
-  device-id: idDevice321567Device
+  api-key: ${EXTERNAL_API_KEY}
+  device-id: ${EXTERNAL_DEVICE_ID}
 
-# JWT
+# JWT 
 jwt:
-  secret: sapee2026superSecretKeyForJwt256bits!!
+  secret: ${JWT_SECRET}
 
 
 #Monitoring - metrics

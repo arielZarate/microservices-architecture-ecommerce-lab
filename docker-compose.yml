@@ -7,8 +7,8 @@ services:
     image: postgres:17
     container_name: postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
       # POSTGRES_DB se omite: las 4 bases se crean en .infra/docker/postgres/init/01-databases.sql
     ports:
       - "5432:5432"                # solo para dev; en prod se omite
@@ -37,8 +37,11 @@ services:
         condition: service_healthy       # no arranca hasta que la DB esté lista
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/products_management
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
+      EXTERNAL_DEVICE_ID: ${EXTERNAL_DEVICE_ID}
     ports: [ "8080:8080" ]
     networks: [ ecommerce ]
 
@@ -56,7 +59,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-admin}@postgres:5432/users_management
+      DATABASE_URL: postgresql://${SPRING_DATASOURCE_USERNAME}:${SPRING_DATASOURCE_PASSWORD}@postgres:5432/users_management
     networks: [ ecommerce ]
     restart: "no"
 
@@ -72,14 +75,14 @@ services:
         condition: service_completed_successfully   # espera a que migre
     environment:
       PORT: 4000
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-admin}
-      DB_NAME: users_management
-      JWT_SECRET: ${JWT_SECRET:-sapee2026superSecretKeyForJwt256bits!!}
-      API_KEY: ${API_KEY:-idApp1237897key}
-      DEVICE_ID: ${DEVICE_ID:-idDevice321567Device}
+      DATASOURCE_HOST: postgres
+      DATASOURCE_PORT: 5432
+      DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      DATASOURCE_NAME_DATABASE: users_management
+      JWT_SECRET: ${JWT_SECRET}
+      EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
+      EXTERNAL_DEVICE_ID: ${EXTERNAL_DEVICE_ID}
     ports: [ "4000:4000" ]
     networks: [ ecommerce ]
 
@@ -96,7 +99,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-admin}@postgres:5432/orders_management
+      DATABASE_URL: postgresql://${SPRING_DATASOURCE_USERNAME}:${SPRING_DATASOURCE_PASSWORD}@postgres:5432/orders_management
     networks: [ ecommerce ]
     restart: "no"
 
@@ -116,17 +119,18 @@ services:
         condition: service_completed_successfully   # topics listos antes de consumir  
     environment:
       PORT: 3000
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-admin}
-      DB_NAME: orders_management
+      DATASOURCE_HOST: postgres
+      DATASOURCE_PORT: 5432
+      DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      DATASOURCE_NAME_DATABASE: orders_management
       KAFKA_BROKER: kafka-container:29092
       KAFKA_GROUP_ID: order-service-group
-      PRODUCT_SERVICE_URL: http://products-service:8080/api
-      JWT_SECRET: ${JWT_SECRET:-sapee2026superSecretKeyForJwt256bits!!}
-      API_KEY: ${API_KEY:-idApp1237897key}
-      DEVICE_ID: ${DEVICE_ID:-idDevice321567Device}
+      PRODUCT_SERVICE_HOST: http://products-service:8080/api
+      JWT_SECRET: ${JWT_SECRET}
+      EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
+      EXTERNAL_DEVICE_ID: ${EXTERNAL_DEVICE_ID}
+      TIMEOUT_MS: 5000
     ports: [ "3000:3000" ]
     networks: [ ecommerce ]
 
@@ -153,13 +157,13 @@ services:
       # application.yaml apunta a localhost; dentro de la red de compose se
       # sobreescribe por variables de entorno (relaxed binding de Spring).
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shipment_management
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-container:29092
       EXTERNALS_ADDRESS_CLIENT_HOST: http://user-service:4000
       EXTERNALS_USER_CLIENT_HOST: http://user-service:4000
-      EXTERNAL_API_KEY: ${API_KEY:-idApp1237897key}
-      EXTERNAL_DEVICE_ID: ${DEVICE_ID:-idDevice321567Device}
+      EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
+      EXTERNAL_DEVICE_ID: ${EXTERNAL_DEVICE_ID}
     ports: [ "8081:8081" ]
     networks: [ ecommerce ]
 

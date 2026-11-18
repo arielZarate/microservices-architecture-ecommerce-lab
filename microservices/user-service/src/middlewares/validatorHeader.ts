@@ -10,7 +10,7 @@ const validateHeader = (req: Request, res: Response, next: NextFunction) => {
     return res.status(401).json({ error: 'API Key header is missing' });
   }
 
-  if (apiKey !== process.env.API_KEY || deviceId !== process.env.DEVICE_ID) {
+  if (apiKey !== process.env.EXTERNAL_API_KEY || deviceId !== process.env.EXTERNAL_DEVICE_ID) {
     return res.status(403).json({ error: 'Invalid API Key' });
   }
 

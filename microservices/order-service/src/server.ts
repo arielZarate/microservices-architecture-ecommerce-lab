@@ -4,7 +4,10 @@ import app from './app.js';
 import prisma from './lib/prisma.js';
 import logger from './config/logger.js';
 import OrderConsumer from './kafka/order.consumer.js';
+import {validateEnv} from './config/env.js';
 import { kafkaProducer, orderService, KAFKA_BROKER } from './di/container.js';
+
+validateEnv();
 
 const PORT = process.env.PORT || 3000;
 let orderConsumer: OrderConsumer;
