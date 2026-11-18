@@ -13,9 +13,9 @@ export default class ProductClientService implements ProductClient {
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    this.defaultTimeout = Number(process.env.TIMEOUT) || 5000;
-    this.apiKey = process.env.API_KEY as string;
-    this.deviceId = process.env.DEVICE_ID as string;
+    this.defaultTimeout = Number(process.env.TIMEOUT_MS) || 5000;
+    this.apiKey = process.env.EXTERNAL_API_KEY as string;
+    this.deviceId = process.env.EXTERNAL_DEVICE_ID as string;
   }
 
 async getProductById(productId: number, config?: RequestConfig): Promise<ProductDTO> {

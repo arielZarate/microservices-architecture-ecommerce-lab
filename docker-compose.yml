@@ -119,17 +119,18 @@ services:
         condition: service_completed_successfully   # topics listos antes de consumir  
     environment:
       PORT: 3000
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-admin}
-      DB_NAME: orders_management
+      DATASOURCE_HOST: postgres
+      DATASOURCE_PORT: 5432
+      DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      DATASOURCE_NAME_DATABASE: orders_management
       KAFKA_BROKER: kafka-container:29092
       KAFKA_GROUP_ID: order-service-group
-      PRODUCT_SERVICE_URL: http://products-service:8080/api
+      PRODUCT_SERVICE_HOST: http://products-service:8080/api
       JWT_SECRET: ${JWT_SECRET}
       EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
       EXTERNAL_DEVICE_ID: ${EXTERNAL_DEVICE_ID}
+      TIMEOUT_MS: 5000
     ports: [ "3000:3000" ]
     networks: [ ecommerce ]
 

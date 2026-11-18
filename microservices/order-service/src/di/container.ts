@@ -5,7 +5,7 @@ import OrderServiceImpl from '../services/order/order.service.impl.js';
 import OrderController from '../controllers/order.controller.js';
 
 const KAFKA_BROKER = process.env.KAFKA_BROKER || 'localhost:9092';
-const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost:8080/api';
+const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_HOST || 'http://localhost:8080/api';
 
 const kafkaProducer = new KafkaProducer(KAFKA_BROKER);
 const productClient = new ProductClientService(PRODUCT_SERVICE_URL);
