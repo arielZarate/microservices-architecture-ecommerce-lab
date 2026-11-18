@@ -42,7 +42,7 @@ external:
 
 # JWT
 jwt:
-  secret: ${JWT_SECRET:superSecretKeyForJwt!!!}
+  secret: ${JWT_SECRET:sapee2026superSecretKeyForJwt256bits!!}
 
 
 #Monitoring - metrics
