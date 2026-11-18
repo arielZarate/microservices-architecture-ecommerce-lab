@@ -75,14 +75,14 @@ services:
         condition: service_completed_successfully   # espera a que migre
     environment:
       PORT: 4000
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${SPRING_DATASOURCE_USERNAME}
-      DB_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      DB_NAME: users_management
+      DATASOURCE_HOST: postgres
+      DATASOURCE_PORT: 5432
+      DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      DATASOURCE_NAME_DATABASE: users_management
       JWT_SECRET: ${JWT_SECRET}
       EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
-      DEVICE_ID: ${EXTERNAL_DEVICE_ID}
+      EXTERNAL_DEVICE_ID: ${EXTERNAL_DEVICE_ID}
     ports: [ "4000:4000" ]
     networks: [ ecommerce ]
 

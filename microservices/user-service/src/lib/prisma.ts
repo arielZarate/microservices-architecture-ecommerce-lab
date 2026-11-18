@@ -3,11 +3,11 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../generated/prisma/client.js";
 
 const adapter = new PrismaPg({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  port: parseInt(process.env.DB_PORT!),
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: process.env.DATASOURCE_HOST,
+  user: process.env.DATASOURCE_USERNAME,
+  port: parseInt(process.env.DATASOURCE_PORT!),
+  password: process.env.DATASOURCE_PASSWORD,
+  database: process.env.DATASOURCE_NAME_DATABASE,
 });
 
 const prisma = new PrismaClient({ adapter });
