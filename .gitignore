@@ -25,3 +25,6 @@ generated/
 
 # OS
 .DS_Store
+
+#k8s
+k8s/config/secret.yaml
