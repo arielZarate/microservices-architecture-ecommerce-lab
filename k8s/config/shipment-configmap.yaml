@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shipment-service-config
+  namespace: lab
+data:
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shipment_management
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  EXTERNALS_ADDRESS_CLIENT_HOST: http://user-service:4000
+  EXTERNALS_USER_CLIENT_HOST: http://user-service:4000

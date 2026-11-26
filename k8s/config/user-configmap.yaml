@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  namespace: lab
+data:
+  PORT: "4000"
+  DATASOURCE_HOST: postgres
+  DATASOURCE_PORT: "5432"
+  DATASOURCE_NAME_DATABASE: users_management
